@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { LibraryScreen } from './library/LibraryScreen'
 import { PlayerScreen } from './player/PlayerScreen'
 
@@ -8,6 +8,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<LibraryScreen />} />
         <Route path="/song/:id" element={<PlayerScreen />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )

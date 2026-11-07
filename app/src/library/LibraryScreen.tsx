@@ -60,7 +60,7 @@ export function LibraryScreen() {
     <div className="library">
       <header className="lib-header">
         <span className="logo" aria-hidden="true"><span className="l1" /><span className="l2" /><span className="l3" /></span>
-        <span className="wordmark">Pianoverse</span>
+        <h1 className="wordmark">Pianoverse</h1>
         <div className="segmented small" role="group" aria-label={m.library.language}>
           <button type="button" aria-pressed={lang === 'el'} onClick={() => setLang('el')}>ΕΛ</button>
           <button type="button" aria-pressed={lang === 'en'} onClick={() => setLang('en')}>EN</button>
@@ -72,7 +72,7 @@ export function LibraryScreen() {
       <ul className="song-list">
         {state.songs?.map((song) => <li key={song.id}><SongCard song={song} /></li>)}
       </ul>
-      <div className="new-song-soon" aria-disabled="true"><Plus />{m.library.newSongSoon}</div>
+      <div className="new-song-soon"><Plus />{m.library.newSongSoon}</div>
     </div>
   )
 }
