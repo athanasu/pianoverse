@@ -1,0 +1,19 @@
+[
+  {
+    "id": "demo",
+    "title": "Demo · Am F C G",
+    "key": {
+      "tonic": "A",
+      "mode": "minor"
+    },
+    "bpm": 90,
+    "durationSec": 22.333,
+    "sourceType": "instrumental",
+    "chords": [
+      "Am",
+      "F",
+      "C",
+      "G"
+    ]
+  }
+]
