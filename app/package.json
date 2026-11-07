@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -12,11 +15,6 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "make:demo": "node scripts/make-demo-song.mjs"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
   },
   "dependencies": {
     "react": "^19.3.1",
