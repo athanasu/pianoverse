@@ -1,6 +1,9 @@
 import hashlib
+import io
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 
 import numpy as np
 import pytest
@@ -96,10 +99,41 @@ def test_verified_weights_are_downloaded_once(tmp_path, monkeypatch):
 
     monkeypatch.setattr(chords_btc, "_download", fake_download)
     monkeypatch.setattr(chords_btc, "WEIGHTS_SHA256", hashlib.sha256(b"model").hexdigest())
-    first = chords_btc.ensure_weights(tmp_path / "cache")
-    assert chords_btc.ensure_weights(tmp_path / "cache") == first
-    assert first.read_bytes() == b"model"
+    assert chords_btc.ensure_weights(tmp_path / "cache") == b"model"
+    assert chords_btc.ensure_weights(tmp_path / "cache") == b"model"
     assert calls == [chords_btc.WEIGHTS_URL]
+
+
+def test_unreachable_download_is_reported(tmp_path, monkeypatch):
+    def offline(url, timeout):
+        raise urllib.error.URLError("no network")
+
+    monkeypatch.setattr(urllib.request, "urlopen", offline)
+    with pytest.raises(PipelineError) as err:
+        chords_btc.ensure_weights(tmp_path)
+    assert err.value.code == "chord_model_download"
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_interrupted_download_leaves_no_partial_file(tmp_path, monkeypatch):
+    class Dropping(io.BytesIO):
+        def read(self, size=-1):
+            if self.tell():
+                raise TimeoutError("timed out")
+            return super().read(4)
+
+    seen = {}
+
+    def flaky(url, timeout):
+        seen["timeout"] = timeout
+        return Dropping(b"partial model")
+
+    monkeypatch.setattr(urllib.request, "urlopen", flaky)
+    with pytest.raises(PipelineError) as err:
+        chords_btc.ensure_weights(tmp_path)
+    assert err.value.code == "chord_model_download"
+    assert list(tmp_path.iterdir()) == []
+    assert seen["timeout"] == chords_btc.DOWNLOAD_TIMEOUT
 
 
 @pytest.mark.slow

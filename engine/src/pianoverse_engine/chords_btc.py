@@ -1,5 +1,6 @@
 """Chord recognition with the BTC transformer (vendor/btc), trained on full song mixes."""
 import hashlib
+import io
 import urllib.request
 from collections import Counter
 from functools import lru_cache
@@ -21,6 +22,7 @@ WEIGHTS_URL = ("https://raw.githubusercontent.com/jayg996/BTC-ISMIR19/"
                "2682317be668032e6e4b269ded36adaa2ad57df0/test/btc_model_large_voca.pt")
 WEIGHTS_SHA256 = "1673d23f8f9a55ae7f9e8b80a51da616debb22675b8d8b67ea6ce0ef37b0ab51"
 CACHE_DIR = Path.home() / ".cache" / "pianoverse"
+DOWNLOAD_TIMEOUT = 60  # seconds without data before giving up
 
 SR = CONFIG["mp3"]["song_hz"]
 CHUNK_SECONDS = CONFIG["mp3"]["inst_len"]
@@ -80,23 +82,29 @@ def frames_to_segments(
 
 def _download(url: str, dest: Path) -> None:
     part = dest.with_suffix(".part")
-    with urllib.request.urlopen(url) as response, open(part, "wb") as f:
-        while chunk := response.read(1 << 20):
-            f.write(chunk)
+    try:
+        with urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT) as response, open(part, "wb") as f:
+            while chunk := response.read(1 << 20):
+                f.write(chunk)
+    except OSError as exc:   # URLError, HTTPError and TimeoutError are all OSErrors
+        part.unlink(missing_ok=True)
+        raise PipelineError("chord_model_download",
+                            "Δεν μπόρεσα να κατεβάσω το μοντέλο συγχορδιών. Έλεγξε τη σύνδεση στο διαδίκτυο.") from exc
     part.replace(dest)
 
 
-def ensure_weights(cache_dir: Path = CACHE_DIR) -> Path:
-    """Path to the verified BTC checkpoint, downloading it on first use."""
+def ensure_weights(cache_dir: Path = CACHE_DIR) -> bytes:
+    """The verified BTC checkpoint bytes, downloading the file on first use."""
     path = cache_dir / "btc_model_large_voca.pt"
     if not path.exists():
         cache_dir.mkdir(parents=True, exist_ok=True)
         _download(WEIGHTS_URL, path)
-    if hashlib.sha256(path.read_bytes()).hexdigest() != WEIGHTS_SHA256:
+    data = path.read_bytes()
+    if hashlib.sha256(data).hexdigest() != WEIGHTS_SHA256:
         path.unlink()
         raise PipelineError("chord_model_corrupt",
                             "Το μοντέλο συγχορδιών κατέβηκε αλλοιωμένο. Δοκίμασε ξανά.")
-    return path
+    return data
 
 
 @lru_cache(maxsize=1)
@@ -105,8 +113,8 @@ def _load_model():
 
     from .vendor.btc.btc_model import BTC_model
 
-    # Pinned upstream checkpoint that pickles numpy mean/std; integrity checked by SHA-256 above.
-    checkpoint = torch.load(ensure_weights(), map_location="cpu", weights_only=False)
+    # Pinned upstream checkpoint that pickles numpy mean/std; loaded from the SHA-256-checked bytes.
+    checkpoint = torch.load(io.BytesIO(ensure_weights()), map_location="cpu", weights_only=False)
     model = BTC_model(config=CONFIG["model"])
     model.load_state_dict(checkpoint["model"])
     model.eval()

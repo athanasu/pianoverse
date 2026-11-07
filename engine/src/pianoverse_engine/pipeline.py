@@ -27,16 +27,17 @@ class Engines:
     transcribe_piano: Callable[[Path], list[RawNote]]
     recognize_chords: Callable[[Stems, list[float], float],
                                tuple[list[ChordSegment], list[tuple[float, float]]]]
+    prepare: Callable[[], object] | None = None   # fetch model weights before the slow stages
 
 
 def default_engines() -> Engines:
     from .beats import track_beats
-    from .chords_btc import recognize_chords_btc
+    from .chords_btc import ensure_weights, recognize_chords_btc
     from .separate import separate
     from .transcribe import transcribe_piano, transcribe_polyphonic
     return Engines(separate=separate, track_beats=track_beats,
                    transcribe_polyphonic=transcribe_polyphonic, transcribe_piano=transcribe_piano,
-                   recognize_chords=recognize_chords_btc)
+                   recognize_chords=recognize_chords_btc, prepare=ensure_weights)
 
 
 def _no_progress(stage: str, fraction: float) -> None:
@@ -69,6 +70,8 @@ def run_pipeline(
     workdir.mkdir(parents=True, exist_ok=True)
     norm = workdir / "input.wav"
     duration = normalize(src, norm)
+    if engines.prepare is not None:
+        engines.prepare()
 
     progress("separating", 0.05)
     stems = engines.separate(norm)

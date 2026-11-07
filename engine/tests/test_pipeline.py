@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -6,7 +8,7 @@ import soundfile as sf
 
 from helpers import synth
 from pianoverse_engine.chords import recognize_chords_from_stems
-from pianoverse_engine.chords_btc import recognize_chords_btc
+from pianoverse_engine.chords_btc import ensure_weights, recognize_chords_btc
 from pianoverse_engine.errors import PipelineError
 from pianoverse_engine.models import ChordSegment, RawNote, Song
 from pianoverse_engine.pipeline import Engines, _mmss, _warnings, default_engines, run_pipeline
@@ -29,8 +31,10 @@ class FakeEngines:
         self.vocal_level = vocal_level
         self.calls: list[tuple[str, str]] = []
         self.recognize_chords = recognize_chords_from_stems
+        self.prepare = None
 
     def separate(self, path: Path) -> Stems:
+        self.calls.append(("separate", path.name))
         chords = synth([(p, i * 2, i * 2 + 2) for i, (ps, _) in enumerate(PROGRESSION) for p in ps], SR)
         bass = synth([(ps[0] - 12, i * 2, i * 2 + 2) for i, (ps, _) in enumerate(PROGRESSION)], SR)
         vocals = synth([(n.pitch, n.start, n.end) for n in MELODY], SR) * self.vocal_level
@@ -54,7 +58,8 @@ class FakeEngines:
     def engines(self) -> Engines:
         return Engines(separate=self.separate, track_beats=self.track_beats,
                        transcribe_polyphonic=self.transcribe_polyphonic,
-                       transcribe_piano=self.transcribe_piano, recognize_chords=self.recognize_chords)
+                       transcribe_piano=self.transcribe_piano, recognize_chords=self.recognize_chords,
+                       prepare=self.prepare)
 
 
 @pytest.fixture
@@ -74,7 +79,7 @@ def test_vocal_song_end_to_end(tmp_path, song_file):
     assert set(song.arrangements) == {"easy", "medium", "hard"}
     assert [c.symbol for c in song.chords][:4] == ["C", "Am", "F", "G"]
     assert song.tempo.bpm == pytest.approx(120.0)
-    assert fake.calls == [("polyphonic", "vocals.wav")]
+    assert fake.calls == [("separate", "input.wav"), ("polyphonic", "vocals.wav")]
     assert stages == ["separating", "analyzing", "arranging", "done"]
     assert Song.model_validate_json(song.model_dump_json()) == song
 
@@ -84,14 +89,14 @@ def test_mode_override_solo_piano_adds_original(tmp_path, song_file):
     song = run_pipeline(song_file, tmp_path / "work", title="Test", mode="solo_piano", engines=fake.engines())
     assert song.sourceType == "solo_piano"
     assert "original" in song.arrangements
-    assert fake.calls == [("piano", "input.wav")]
+    assert fake.calls == [("separate", "input.wav"), ("piano", "input.wav")]
 
 
 def test_instrumental_uses_lead_stem(tmp_path, song_file):
     fake = FakeEngines(vocal_level=0.0)
     song = run_pipeline(song_file, tmp_path / "work", title="Test", engines=fake.engines())
     assert song.sourceType == "instrumental"
-    assert fake.calls == [("polyphonic", "other.wav")]
+    assert fake.calls == [("separate", "input.wav"), ("polyphonic", "other.wav")]
 
 
 def test_no_melody_is_an_error(tmp_path, song_file):
@@ -146,4 +151,25 @@ def test_pipeline_uses_the_chord_engine_with_stems_and_beats(tmp_path, song_file
 
 
 def test_default_engines_recognize_chords_with_btc():
-    assert default_engines().recognize_chords is recognize_chords_btc
+    engines = default_engines()
+    assert engines.recognize_chords is recognize_chords_btc
+    assert engines.prepare is ensure_weights
+
+
+def test_default_engines_do_not_import_torch():
+    code = ("import sys; from pianoverse_engine.pipeline import default_engines; default_engines(); "
+            "assert 'torch' not in sys.modules")
+    assert subprocess.run([sys.executable, "-c", code]).returncode == 0
+
+
+def test_failed_preparation_stops_before_separation(tmp_path, song_file):
+    fake = FakeEngines()
+
+    def offline():
+        raise PipelineError("chord_model_download", "offline")
+
+    fake.prepare = offline
+    with pytest.raises(PipelineError) as err:
+        run_pipeline(song_file, tmp_path / "work", title="Test", engines=fake.engines())
+    assert err.value.code == "chord_model_download"
+    assert fake.calls == []
