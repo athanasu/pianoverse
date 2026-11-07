@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useShallow } from 'zustand/react/shallow'
+import { unlockAudio } from '../audio/piano'
 import { useLang, useMessages } from '../i18n/lang'
 import { SongLoadError, loadSong, type SongLoadErrorCode } from '../song/loader'
 import { availableLevels, type Song } from '../song/types'
@@ -39,9 +40,10 @@ function Player({ song }: { song: Song }) {
   useEffect(() => silence(), [level, silence])
 
   const togglePlay = () => {
-    void piano.ensure()
+    unlockAudio()
     if (clock.isPlaying()) clock.pause()
-    else clock.play()
+    else if (piano.waiting) piano.cancelWait()
+    else piano.whenLoaded(() => clock.play())
   }
   const getView = useCallback(() => {
     const { hands, names } = usePlayer.getState()
@@ -55,10 +57,10 @@ function Player({ song }: { song: Song }) {
       <div className="stage">
         <PianoRoll clock={clock} tempo={song.tempo} notes={notes} lo={lo} hi={hi} label={m.player.rollLabel} getView={getView} />
         {card && <ChordCard clock={clock} chords={song.chords} />}
+        {piano.toast === 'loading' && <div className="toast" role="status">{m.player.pianoLoading}</div>}
+        {piano.toast === 'failed' && <div className="toast warn" role="status">{m.player.pianoFailed}</div>}
       </div>
       <Controls clock={clock} duration={song.durationSec} playing={playing} onTogglePlay={togglePlay} />
-      {piano.status === 'loading' && <div className="toast" role="status">{m.player.pianoLoading}</div>}
-      {piano.status === 'failed' && <div className="toast warn" role="status">{m.player.pianoFailed}</div>}
       <div className="rotate-hint" aria-hidden="true">{m.player.rotate}</div>
     </div>
   )

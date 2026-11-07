@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
-import { PianoEngine, createSampler, preloadTone, unlockAudio } from '../audio/piano'
+import { PianoEngine, createSampler } from '../audio/piano'
 import type { Note } from '../song/types'
 import type { PlaybackClock } from './transport'
 
@@ -42,51 +42,82 @@ export function useWakeLock(active: boolean): void {
   }, [active])
 }
 
-export type PianoStatus = 'idle' | 'loading' | 'ready' | 'failed'
+export type PianoStatus = 'loading' | 'ready' | 'failed'
 
+const PLAY_WAIT_MS = 8000
+const FAILED_TOAST_MS = 5000
+
+// Loads the piano on mount (decoding works while the audio context is still suspended).
 export function usePiano(clock: PlaybackClock, notesRef: RefObject<Note[]>) {
   const engine = useRef<PianoEngine | null>(null)
-  const started = useRef(false)
   const gen = useRef(0)
-  const [status, setStatus] = useState<PianoStatus>('idle')
+  const pending = useRef<Promise<void> | null>(null)
+  const waitId = useRef(0)
+  const [status, setStatus] = useState<PianoStatus>('loading')
+  const [waiting, setWaiting] = useState(false)
+  const [failures, setFailures] = useState(0)
+  const [hiddenFailures, setHiddenFailures] = useState(0)
 
-  useEffect(() => {
-    preloadTone().catch(() => {})
-  }, [])
-
-  const ensure = useCallback(async () => {
-    unlockAudio()
-    if (started.current) return
-    started.current = true
+  const load = useCallback(() => {
     const mine = gen.current
     setStatus('loading')
-    try {
-      const sampler = await createSampler()
-      if (gen.current !== mine) {
-        sampler.dispose()
-        return
-      }
-      engine.current = new PianoEngine(clock, sampler, () => notesRef.current ?? [])
-      engine.current.start()
-      setStatus('ready')
-    } catch {
-      if (gen.current !== mine) return
-      started.current = false
-      setStatus('failed')
-    }
+    pending.current = createSampler().then(
+      (sampler) => {
+        if (gen.current !== mine) return sampler.dispose()
+        engine.current = new PianoEngine(clock, sampler, () => notesRef.current ?? [])
+        engine.current.start()
+        setStatus('ready')
+      },
+      () => {
+        if (gen.current !== mine) return
+        setStatus('failed')
+        setFailures((n) => n + 1)
+      },
+    )
   }, [clock, notesRef])
+
+  useEffect(() => {
+    load()
+    return () => {
+      gen.current++
+      waitId.current++
+      engine.current?.stop()
+      engine.current = null
+    }
+  }, [load])
+
+  useEffect(() => {
+    if (failures === 0) return
+    const id = setTimeout(() => setHiddenFailures(failures), FAILED_TOAST_MS)
+    return () => clearTimeout(id)
+  }, [failures])
+
+  // Runs `start` now if the piano has settled; while it is loading, once it settles or after PLAY_WAIT_MS.
+  const whenLoaded = (start: () => void) => {
+    if (status === 'failed') load()
+    if (status !== 'loading') return start()
+    const mine = ++waitId.current
+    setWaiting(true)
+    const go = () => {
+      clearTimeout(timer)
+      if (waitId.current !== mine) return
+      waitId.current++
+      setWaiting(false)
+      start()
+    }
+    const timer = setTimeout(go, PLAY_WAIT_MS)
+    void pending.current?.then(go)
+  }
+
+  const cancelWait = () => {
+    waitId.current++
+    setWaiting(false)
+  }
 
   const silence = useCallback(() => engine.current?.silence(), [])
 
-  useEffect(
-    () => () => {
-      gen.current++
-      engine.current?.stop()
-      engine.current = null
-      started.current = false
-    },
-    [clock],
-  )
+  const toast: 'loading' | 'failed' | null =
+    waiting ? 'loading' : status === 'failed' && failures !== hiddenFailures ? 'failed' : null
 
-  return { status, ensure, silence }
+  return { status, waiting, toast, whenLoaded, cancelWait, silence }
 }

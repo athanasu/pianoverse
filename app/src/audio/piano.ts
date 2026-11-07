@@ -119,9 +119,9 @@ export function unlockAudio(): void {
   void toneModule?.start()
 }
 
+// Needs no user gesture: samples decode while the context is suspended; unlockAudio() resumes it on Play.
 export async function createSampler(): Promise<SamplerLike> {
   const Tone = await preloadTone()
-  await Tone.start()
   const sampler = new Tone.Sampler({ urls: salamanderUrls(), baseUrl: SALAMANDER_BASE, release: 1 }).toDestination()
   try {
     await Tone.loaded()

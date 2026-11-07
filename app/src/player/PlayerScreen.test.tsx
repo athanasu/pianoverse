@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -11,7 +11,6 @@ import { usePlayer } from './store'
 
 vi.mock('../audio/piano', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../audio/piano')>()),
-  preloadTone: vi.fn().mockResolvedValue({}),
   unlockAudio: vi.fn(),
   createSampler: vi.fn().mockRejectedValue(new Error('no audio in tests')),
 }))
@@ -22,7 +21,14 @@ beforeEach(() => {
   useLang.setState({ lang: 'el' })
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(demo, { status: 200 })))
 })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
+
+const FAILED = 'Δεν φόρτωσε ο ήχος του πιάνου· οι νότες συνεχίζουν χωρίς ήχο.'
+const LOADING = 'Φορτώνω τον ήχο του πιάνου…'
+const fakeSampler = (): piano.SamplerLike => ({ trigger: vi.fn(), releaseAll: vi.fn(), now: () => 0, dispose: vi.fn() })
 
 const renderAt = (path: string) =>
   render(
@@ -107,4 +113,48 @@ it('silences the piano when the level changes', async () => {
   releaseAll.mockClear()
   await user.click(screen.getByRole('button', { name: 'Εύκολο' }))
   expect(releaseAll).toHaveBeenCalled()
+})
+
+it('plays at once when the piano failed to load, and hides the warning after 5 s', async () => {
+  renderAt('/song/demo')
+  expect(await screen.findByText(FAILED)).toBeInTheDocument()
+  const loads = vi.mocked(piano.createSampler).mock.calls.length
+  vi.useFakeTimers()
+  fireEvent.click(screen.getByRole('button', { name: 'Αναπαραγωγή' }))
+  expect(screen.getByRole('button', { name: 'Παύση' })).toBeInTheDocument()
+  expect(piano.unlockAudio).toHaveBeenCalled()
+  expect(piano.createSampler).toHaveBeenCalledTimes(loads + 1)
+  await act(async () => {}) // the press retried the load; let it fail again
+  await act(() => vi.advanceTimersByTimeAsync(4500))
+  expect(screen.getByText(FAILED)).toBeInTheDocument()
+  await act(() => vi.advanceTimersByTimeAsync(1000))
+  expect(screen.queryByText(FAILED)).not.toBeInTheDocument()
+})
+
+it('loads the piano on open and starts playing only once it is ready', async () => {
+  const user = userEvent.setup()
+  let resolve!: (s: piano.SamplerLike) => void
+  vi.mocked(piano.createSampler).mockReturnValueOnce(new Promise((r) => (resolve = r)))
+  renderAt('/song/demo')
+  await screen.findByText('Demo · Am F C G')
+  expect(screen.queryByText(LOADING)).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Αναπαραγωγή' }))
+  expect(screen.getByRole('button', { name: 'Αναπαραγωγή' })).toBeInTheDocument()
+  expect(screen.getByText(LOADING)).toBeInTheDocument()
+  resolve(fakeSampler())
+  expect(await screen.findByRole('button', { name: 'Παύση' })).toBeInTheDocument()
+  expect(screen.queryByText(LOADING)).not.toBeInTheDocument()
+})
+
+it('stops waiting for a slow piano after 8 s and plays silently', async () => {
+  vi.mocked(piano.createSampler).mockReturnValueOnce(new Promise(() => {}))
+  renderAt('/song/demo')
+  await screen.findByText('Demo · Am F C G')
+  vi.useFakeTimers()
+  fireEvent.click(screen.getByRole('button', { name: 'Αναπαραγωγή' }))
+  await act(() => vi.advanceTimersByTimeAsync(7900))
+  expect(screen.getByRole('button', { name: 'Αναπαραγωγή' })).toBeInTheDocument()
+  await act(() => vi.advanceTimersByTimeAsync(200))
+  expect(screen.getByRole('button', { name: 'Παύση' })).toBeInTheDocument()
+  expect(screen.queryByText(LOADING)).not.toBeInTheDocument()
 })
