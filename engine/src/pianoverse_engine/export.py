@@ -17,6 +17,7 @@ def arrangement_to_midi(arr: Arrangement, bpm: float) -> pretty_midi.PrettyMIDI:
 
 def write_outputs(song: Song, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "song.json").write_text(song.model_dump_json(indent=2, exclude_none=True))
+    (out_dir / "song.json").write_text(
+        song.model_dump_json(indent=2, exclude_none=True), encoding="utf-8")
     for level, arr in song.arrangements.items():
         arrangement_to_midi(arr, song.tempo.bpm).write(str(out_dir / f"{level}.mid"))

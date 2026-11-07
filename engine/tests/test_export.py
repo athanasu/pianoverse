@@ -2,13 +2,16 @@ import pretty_midi
 
 from helpers import make_song
 from pianoverse_engine.export import write_outputs
-from pianoverse_engine.models import Song
+from pianoverse_engine.models import Song, SongWarning
 
 
 def test_write_outputs(tmp_path):
-    song = make_song()
+    song = make_song(warnings=[SongWarning(
+        code="melody_sparse", message="Η μελωδία εντοπίστηκε μόνο στο 20% του κομματιού.")])
     write_outputs(song, tmp_path / "out")
-    text = (tmp_path / "out" / "song.json").read_text()
+    raw = (tmp_path / "out" / "song.json").read_bytes()
+    text = raw.decode("utf-8")
+    assert "μελωδία" in text
     assert '"bass"' not in text   # None fields are omitted
     assert Song.model_validate_json(text) == song
     pm = pretty_midi.PrettyMIDI(str(tmp_path / "out" / "easy.mid"))
