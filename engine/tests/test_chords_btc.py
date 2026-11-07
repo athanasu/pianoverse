@@ -47,6 +47,7 @@ def test_label_mapping_examples():
 
 TIMES = np.arange(40) * 0.1          # 4 s of frames, 10 per beat
 BEATS4 = [1.0, 2.0, 3.0]
+SOUND4 = np.ones(4, dtype=bool)
 
 
 def _frames(*runs: tuple[str, int, float]) -> tuple[list[str], np.ndarray]:
@@ -57,7 +58,7 @@ def _frames(*runs: tuple[str, int, float]) -> tuple[list[str], np.ndarray]:
 
 def test_frames_merge_equal_beats_and_drop_no_chord():
     labels, probs = _frames(("C", 10, 0.9), ("C:maj6", 10, 0.9), ("A:min7", 10, 0.9), ("N", 10, 0.9))
-    segments, uncertain = frames_to_segments(TIMES, labels, probs, BEATS4, 4.0)
+    segments, uncertain = frames_to_segments(TIMES, labels, probs, BEATS4, 4.0, SOUND4)
     assert [(s.symbol, s.start, s.end) for s in segments] == [("C", 0.0, 2.0), ("Am7", 2.0, 3.0)]
     assert (segments[1].root, segments[1].quality, segments[1].bass) == ("A", "m7", None)
     assert uncertain == []
@@ -65,21 +66,40 @@ def test_frames_merge_equal_beats_and_drop_no_chord():
 
 def test_beat_takes_majority_label_of_its_frames():
     labels, probs = _frames(("C", 6, 0.9), ("G", 4, 0.9), ("G", 30, 0.9))
-    segments, _ = frames_to_segments(TIMES, labels, probs, BEATS4, 4.0)
+    segments, _ = frames_to_segments(TIMES, labels, probs, BEATS4, 4.0, SOUND4)
     assert [(s.symbol, s.start, s.end) for s in segments] == [("C", 0.0, 1.0), ("G", 1.0, 4.0)]
 
 
 def test_majority_tie_goes_to_higher_mean_probability():
     labels, probs = _frames(("C", 5, 0.6), ("G", 5, 0.9), ("G", 30, 0.9))
-    segments, _ = frames_to_segments(TIMES, labels, probs, BEATS4, 4.0)
+    segments, _ = frames_to_segments(TIMES, labels, probs, BEATS4, 4.0, SOUND4)
     assert [s.symbol for s in segments] == ["G"]
 
 
 def test_low_probability_segments_are_uncertain_and_ranges_merge():
     labels, probs = _frames(("C", 10, 0.9), ("F", 10, 0.3), ("G", 10, 0.45), ("C", 10, 0.9))
-    segments, uncertain = frames_to_segments(TIMES, labels, probs, BEATS4, 4.0)
+    segments, uncertain = frames_to_segments(TIMES, labels, probs, BEATS4, 4.0, SOUND4)
     assert [s.symbol for s in segments] == ["C", "F", "G", "C"]
     assert uncertain == [(1.0, 3.0)]
+
+
+TIMES8 = np.arange(80) * 0.1         # 8 s of frames, beats every second
+BEATS8 = [float(b) for b in range(1, 8)]
+
+
+def test_long_no_chord_span_over_sound_is_uncertain():
+    labels, probs = _frames(("C", 20, 0.9), ("N", 60, 0.95))
+    segments, uncertain = frames_to_segments(TIMES8, labels, probs, BEATS8, 8.0, np.ones(8, dtype=bool))
+    assert [(s.symbol, s.start, s.end) for s in segments] == [("C", 0.0, 2.0)]
+    assert uncertain == [(2.0, 8.0)]
+
+
+def test_no_chord_over_silence_or_short_gaps_is_not_uncertain():
+    labels, probs = _frames(("C", 20, 0.9), ("N", 60, 0.95))
+    silent_tail = np.array([True, True, False, False, False, False, False, False])
+    assert frames_to_segments(TIMES8, labels, probs, BEATS8, 8.0, silent_tail)[1] == []
+    short_sound = np.array([True, True, True, True, True, False, False, False])   # N sounds for 3 s only
+    assert frames_to_segments(TIMES8, labels, probs, BEATS8, 8.0, short_sound)[1] == []
 
 
 def test_corrupt_weights_are_deleted_and_reported(tmp_path, monkeypatch):

@@ -5,7 +5,9 @@ import numpy as np
 import pytest
 
 from helpers import synth
-from pianoverse_engine.chords import _bounds, _merge_ranges, estimate_tuning, recognize_chords, with_bass
+from pianoverse_engine.chords import (
+    _bounds, _merge_ranges, estimate_tuning, recognize_chords, sounding_segments, with_bass,
+)
 from pianoverse_engine.models import ChordSegment
 
 SR = 22050
@@ -77,3 +79,10 @@ def test_with_bass_adds_slash_only_for_chord_tones():
     bass = synth([(40, 0, 2), (39, 2, 4)], SR)          # E under C, Eb under Am
     out = with_bass(segments, bass, SR, _bounds(BEATS[:7], 4.0))
     assert [(s.symbol, s.bass) for s in out] == [("C/E", "E"), ("Am", None)]
+
+
+def test_sounding_segments_marks_quiet_beats():
+    y = synth([(60, 0, 2)], SR)[: 4 * SR]
+    y = np.pad(y, (0, 4 * SR - len(y)))
+    assert sounding_segments(y, SR, _bounds([1.0, 2.0, 3.0], 4.0)).tolist() == [True, True, False, False]
+    assert not sounding_segments(np.zeros(4 * SR, dtype=np.float32), SR, _bounds([2.0], 4.0)).any()

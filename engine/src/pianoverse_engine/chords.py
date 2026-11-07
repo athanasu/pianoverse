@@ -39,6 +39,19 @@ def _bounds(beats: list[float], duration: float) -> np.ndarray:
     return np.array([0.0, *inner, duration])
 
 
+def sounding_segments(y: np.ndarray, sr: int, bounds: np.ndarray) -> np.ndarray:
+    """Per segment: is its mean RMS at least SILENCE_RATIO of the loudest segment's?"""
+    rms = librosa.feature.rms(y=y, hop_length=HOP)[0]
+    r_times = librosa.times_like(rms, sr=sr, hop_length=HOP)
+    energy = np.zeros(len(bounds) - 1)
+    for i, (a, b) in enumerate(zip(bounds[:-1], bounds[1:])):
+        rm = (r_times >= a) & (r_times < b)
+        if rm.any():
+            energy[i] = rms[rm].mean()
+    peak = energy.max()
+    return energy >= SILENCE_RATIO * (peak if peak > 0 else 1.0)
+
+
 def _segment_chroma(y: np.ndarray, sr: int, bounds: np.ndarray) -> np.ndarray:
     """(n_segments, 12) unit-norm chroma; silent segments are all-zero rows."""
     n = len(bounds) - 1
@@ -46,19 +59,12 @@ def _segment_chroma(y: np.ndarray, sr: int, bounds: np.ndarray) -> np.ndarray:
         return np.zeros((n, 12))
     chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP, tuning=estimate_tuning(y, sr))
     c_times = librosa.times_like(chroma, sr=sr, hop_length=HOP)
-    rms = librosa.feature.rms(y=y, hop_length=HOP)[0]
-    r_times = librosa.times_like(rms, sr=sr, hop_length=HOP)
     out = np.zeros((n, 12))
-    energy = np.zeros(n)
     for i, (a, b) in enumerate(zip(bounds[:-1], bounds[1:])):
         cm = (c_times >= a) & (c_times < b)
         if cm.any():
             out[i] = chroma[:, cm].mean(axis=1)
-        rm = (r_times >= a) & (r_times < b)
-        if rm.any():
-            energy[i] = rms[rm].mean()
-    peak = energy.max()
-    out[energy < SILENCE_RATIO * (peak if peak > 0 else 1.0)] = 0.0
+    out[~sounding_segments(y, sr, bounds)] = 0.0
     norms = np.linalg.norm(out, axis=1, keepdims=True)
     return np.divide(out, norms, out=np.zeros_like(out), where=norms > 0)
 

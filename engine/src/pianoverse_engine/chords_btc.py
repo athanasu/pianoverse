@@ -9,7 +9,7 @@ from pathlib import Path
 import librosa
 import numpy as np
 
-from .chords import _bounds, _merge_ranges, with_bass
+from .chords import _bounds, _merge_ranges, sounding_segments, with_bass
 from .errors import PipelineError
 from .models import ChordSegment
 from .separate import Stems
@@ -18,6 +18,7 @@ from .vendor.btc.config import CONFIG
 from .vendor.btc.vocab import idx2voca_chord
 
 LOW_CONFIDENCE = 0.5    # mean max-probability below this → uncertain range
+NO_CHORD_SPAN = 4.0     # seconds of no chord over sound → uncertain range
 WEIGHTS_URL = ("https://raw.githubusercontent.com/jayg996/BTC-ISMIR19/"
                "2682317be668032e6e4b269ded36adaa2ad57df0/test/btc_model_large_voca.pt")
 WEIGHTS_SHA256 = "1673d23f8f9a55ae7f9e8b80a51da616debb22675b8d8b67ea6ce0ef37b0ab51"
@@ -45,39 +46,56 @@ def map_label(label: str) -> tuple[str, str] | None:
 
 def frames_to_segments(
     frame_times: np.ndarray, frame_labels: list[str], frame_probs: np.ndarray,
-    beats: list[float], duration: float,
+    beats: list[float], duration: float, sounding: np.ndarray,
 ) -> tuple[list[ChordSegment], list[tuple[float, float]]]:
-    """Per-frame BTC predictions → beat-aligned chord segments (no bass) and uncertain ranges."""
+    """Per-frame BTC predictions → beat-aligned chord segments (no bass) and uncertain ranges.
+
+    sounding[i] says whether beat segment i has sound; no chord over sound for NO_CHORD_SPAN
+    seconds or more is reported as uncertain rather than silently dropped.
+    """
     times = np.asarray(frame_times, dtype=float)
     probs = np.asarray(frame_probs, dtype=float)
     mapped = [map_label(label) for label in frame_labels]
     bounds = _bounds(beats, duration)
 
-    runs: list[tuple[tuple[str, str] | None, float, float, list[float]]] = []
+    beat_labels: list[tuple[str, str] | None] = []
+    beat_frames: list[np.ndarray] = []
     for a, b in zip(bounds[:-1], bounds[1:]):
         idx = np.flatnonzero((times >= a) & (times < b))
         if idx.size == 0:
             idx = np.array([int(np.abs(times - (a + b) / 2).argmin())])
         votes = Counter(mapped[k] for k in idx)
         top = max(votes.values())
-        label = max((lab for lab, n in votes.items() if n == top),
-                    key=lambda lab: probs[[k for k in idx if mapped[k] == lab]].mean())
-        if runs and runs[-1][0] == label:
-            runs[-1] = (label, runs[-1][1], float(b), runs[-1][3] + list(probs[idx]))
-        else:
-            runs.append((label, float(a), float(b), list(probs[idx])))
+        beat_labels.append(max((lab for lab, n in votes.items() if n == top),
+                               key=lambda lab: probs[[k for k in idx if mapped[k] == lab]].mean()))
+        beat_frames.append(idx)
 
     segments: list[ChordSegment] = []
     uncertain: list[tuple[float, float]] = []
-    for label, start, end, run_probs in runs:
-        if label is None:
+    for i, j in _runs(beat_labels):
+        start, end = float(bounds[i]), float(bounds[j + 1])
+        if beat_labels[i] is None:
+            for k, m in _runs(list(sounding[i:j + 1])):
+                if sounding[i + k] and bounds[i + m + 1] - bounds[i + k] >= NO_CHORD_SPAN:
+                    uncertain.append((float(bounds[i + k]), float(bounds[i + m + 1])))
             continue
-        root, quality = label
+        root, quality = beat_labels[i]
         segments.append(ChordSegment(start=start, end=end, symbol=chord_symbol(pc_of(root), quality),
                                      root=root, quality=quality))
-        if float(np.mean(run_probs)) < LOW_CONFIDENCE:
+        if float(probs[np.concatenate(beat_frames[i:j + 1])].mean()) < LOW_CONFIDENCE:
             uncertain.append((start, end))
     return segments, _merge_ranges(uncertain)
+
+
+def _runs(values: list) -> list[tuple[int, int]]:
+    """(first, last) index pairs of runs of equal consecutive values."""
+    runs: list[tuple[int, int]] = []
+    for k, v in enumerate(values):
+        if runs and values[runs[-1][1]] == v:
+            runs[-1] = (runs[-1][0], k)
+        else:
+            runs.append((k, k))
+    return runs
 
 
 def _download(url: str, dest: Path) -> None:
@@ -157,8 +175,11 @@ def recognize_chords_btc(
     stems: Stems, beats: list[float], duration: float,
 ) -> tuple[list[ChordSegment], list[tuple[float, float]]]:
     """BTC on the full mix (it was trained on full songs); the bass stem adds slash chords."""
-    times, labels, probs = predict_frames(stems.mix(stems.tracks), stems.sr)
-    segments, uncertain = frames_to_segments(times, labels, probs, beats, duration)
+    mix = stems.mix(stems.tracks)
+    times, labels, probs = predict_frames(mix, stems.sr)
+    bounds = _bounds(beats, duration)
+    segments, uncertain = frames_to_segments(times, labels, probs, beats, duration,
+                                             sounding_segments(mix, stems.sr, bounds))
     if "bass" in stems.tracks:
-        segments = with_bass(segments, stems.mono("bass"), stems.sr, _bounds(beats, duration))
+        segments = with_bass(segments, stems.mono("bass"), stems.sr, bounds)
     return segments, uncertain
