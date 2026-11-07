@@ -4,6 +4,7 @@ Usage: uv run python -m pianoverse_engine.evaluate SAMPLES_DIR OUT_DIR
 """
 import sys
 import time
+import traceback
 from pathlib import Path
 
 import mir_eval
@@ -55,6 +56,21 @@ def chord_score(song: Song, lab: Path) -> float:
     return float(scores["majmin"])
 
 
+def _evaluate_song(path: Path, samples: Path, dest: Path, started: float) -> str:
+    song = run_pipeline(path, dest / "work", title=path.stem)
+    write_outputs(song, dest)
+    original, sr = load_mono(dest / "work" / "input.wav", sr=RENDER_SR)
+    for level, arr in song.arrangements.items():
+        sf.write(dest / f"overlay-{level}.wav", overlay(original, sr, arr, song.tempo.bpm), sr)
+    lab = samples / f"{path.stem}.chords.lab"
+    score = f"{chord_score(song, lab):.0%}" if lab.exists() else "—"
+    return (
+        f"| {path.stem} | {song.sourceType} | {song.key.tonic} {song.key.mode} | "
+        f"{song.tempo.bpm:.0f} | {len(song.chords)} | {score} | {len(song.warnings)} | "
+        f"{time.time() - started:.0f}s |"
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if len(args) != 2:
@@ -70,21 +86,13 @@ def main(argv: list[str] | None = None) -> int:
         started = time.time()
         print(f"→ {path.name}", file=sys.stderr)
         try:
-            song = run_pipeline(path, dest / "work", title=path.stem)
+            rows.append(_evaluate_song(path, samples, dest, started))
         except EngineError as err:
             rows.append(f"| {path.stem} | ✗ {err.code} | | | | | | |")
-            continue
-        write_outputs(song, dest)
-        original, sr = load_mono(dest / "work" / "input.wav", sr=RENDER_SR)
-        for level, arr in song.arrangements.items():
-            sf.write(dest / f"overlay-{level}.wav", overlay(original, sr, arr, song.tempo.bpm), sr)
-        lab = samples / f"{path.stem}.chords.lab"
-        score = f"{chord_score(song, lab):.0%}" if lab.exists() else "—"
-        rows.append(
-            f"| {path.stem} | {song.sourceType} | {song.key.tonic} {song.key.mode} | "
-            f"{song.tempo.bpm:.0f} | {len(song.chords)} | {score} | {len(song.warnings)} | "
-            f"{time.time() - started:.0f}s |"
-        )
+        except Exception as err:   # one bad song must not lose the rest of the report
+            dest.mkdir(parents=True, exist_ok=True)
+            (dest / "error.log").write_text(traceback.format_exc(), encoding="utf-8")
+            rows.append(f"| {path.stem} | ✗ {type(err).__name__} | | | | | | |")
     report = (
         "# Engine evaluation\n\n"
         "| Τραγούδι | Τύπος | Τονικότητα | BPM | Συγχορδίες | Chord acc. (majmin) | Warnings | Χρόνος |\n"
