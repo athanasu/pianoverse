@@ -5,7 +5,8 @@ import numpy as np
 import pytest
 
 from helpers import synth
-from pianoverse_engine.chords import _merge_ranges, estimate_tuning, recognize_chords
+from pianoverse_engine.chords import _bounds, _merge_ranges, estimate_tuning, recognize_chords, with_bass
+from pianoverse_engine.models import ChordSegment
 
 SR = 22050
 BEATS = [i * 0.5 for i in range(1, 16)]
@@ -68,3 +69,11 @@ def test_estimate_tuning_suppresses_empty_frequency_warning():
         warnings.simplefilter("always")
         assert estimate_tuning(quiet, SR) == 0.0
     assert not [w for w in caught if "empty frequency set" in str(w.message)]
+
+
+def test_with_bass_adds_slash_only_for_chord_tones():
+    segments = [ChordSegment(start=0.0, end=2.0, symbol="C", root="C", quality="maj"),
+                ChordSegment(start=2.0, end=4.0, symbol="Am", root="A", quality="min")]
+    bass = synth([(40, 0, 2), (39, 2, 4)], SR)          # E under C, Eb under Am
+    out = with_bass(segments, bass, SR, _bounds(BEATS[:7], 4.0))
+    assert [(s.symbol, s.bass) for s in out] == [("C/E", "E"), ("Am", None)]

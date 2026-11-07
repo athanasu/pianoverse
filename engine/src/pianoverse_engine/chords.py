@@ -4,7 +4,7 @@ import librosa
 import numpy as np
 
 from .models import ChordSegment
-from .theory import QUALITY_INTERVALS, chord_pcs, chord_symbol, pc_name
+from .theory import QUALITY_INTERVALS, chord_pcs, chord_symbol, pc_name, pc_of
 
 HOP = 2048
 NO_CHORD_SCORE = 0.35      # cosine score of the "no chord" state
@@ -91,6 +91,29 @@ def _merge_ranges(ranges: list[tuple[float, float]]) -> list[tuple[float, float]
     return merged
 
 
+def with_bass(
+    segments: list[ChordSegment], bass_y: np.ndarray, sr: int, bounds: np.ndarray,
+) -> list[ChordSegment]:
+    """Slash chords: the strongest bass pitch class over each segment, if it is a chord tone other than the root."""
+    bass_seg = _segment_chroma(bass_y, sr, bounds)
+    out: list[ChordSegment] = []
+    for seg in segments:
+        rows = (bounds[:-1] >= seg.start - 1e-9) & (bounds[1:] <= seg.end + 1e-9)
+        weights = bass_seg[rows].sum(axis=0)
+        root = pc_of(seg.root)
+        bass_pc = None
+        if weights.max(initial=0.0) > 0:
+            candidate = int(weights.argmax())
+            if candidate in chord_pcs(root, seg.quality) and candidate != root:
+                bass_pc = candidate
+        if bass_pc is None:
+            out.append(seg)
+        else:
+            out.append(seg.model_copy(update={"symbol": chord_symbol(root, seg.quality, bass_pc),
+                                              "bass": pc_name(bass_pc)}))
+    return out
+
+
 def recognize_chords(
     y: np.ndarray, sr: int, beats: list[float], duration: float,
     bass_y: np.ndarray | None = None,
@@ -100,7 +123,6 @@ def recognize_chords(
     scores = np.hstack([seg @ _TEMPLATES.T, np.full((len(seg), 1), NO_CHORD_SCORE)])
     path = _viterbi(scores, SWITCH_PENALTY)
     no_chord = len(_STATES)
-    bass_seg = _segment_chroma(bass_y, sr, bounds) if bass_y is not None else None
 
     segments: list[ChordSegment] = []
     uncertain: list[tuple[float, float]] = []
@@ -113,20 +135,11 @@ def recognize_chords(
         if state != no_chord:
             root, quality = _STATES[state]
             start, end = float(bounds[i]), float(bounds[j + 1])
-            bass_pc = None
-            if bass_seg is not None:
-                weights = bass_seg[i:j + 1].sum(axis=0)
-                if weights.max() > 0:
-                    candidate = int(weights.argmax())
-                    if candidate in chord_pcs(root, quality) and candidate != root:
-                        bass_pc = candidate
-            segments.append(ChordSegment(
-                start=start, end=end,
-                symbol=chord_symbol(root, quality, bass_pc),
-                root=pc_name(root), quality=quality,
-                bass=pc_name(bass_pc) if bass_pc is not None else None,
-            ))
+            segments.append(ChordSegment(start=start, end=end, symbol=chord_symbol(root, quality),
+                                         root=pc_name(root), quality=quality))
             if float(scores[i:j + 1, state].mean()) < LOW_CONFIDENCE:
                 uncertain.append((start, end))
         i = j + 1
+    if bass_y is not None:
+        segments = with_bass(segments, bass_y, sr, bounds)
     return segments, _merge_ranges(uncertain)
