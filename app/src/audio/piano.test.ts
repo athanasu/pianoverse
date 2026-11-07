@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Note } from '../song/types'
 import { TransportClock } from '../player/transport'
-import { AUDIO_LATENCY, PianoEngine, VISUAL_OFFSET, crossedNotes, midiToToneName, salamanderUrls, visualTime, type SamplerLike } from './piano'
+import { AUDIO_LATENCY, PianoEngine, VISUAL_OFFSET, audibleNotes, crossedNotes, midiToToneName, salamanderUrls, visualTime, type SamplerLike } from './piano'
 
 const n = (pitch: number, start: number, end = start + 0.5): Note => ({ pitch, start, end, velocity: 100, hand: 'R' })
 const notes = [n(60, 0), n(62, 1), n(64, 2), n(65, 3)]
@@ -16,6 +16,23 @@ describe('crossedNotes', () => {
   })
   it('a backwards jump without a loop sounds nothing', () => {
     expect(crossedNotes(notes, 3, 0.5, null)).toEqual([])
+  })
+})
+
+describe('audibleNotes', () => {
+  const both = [n(48, 0), { ...n(72, 0), hand: 'R' as const }, { ...n(43, 1), hand: 'L' as const }]
+  const hands = (o: Note[]) => o.map((x) => x.hand).join('')
+  it('both hands on: both sound', () => {
+    expect(hands(audibleNotes(both, { L: true, R: true }))).toBe('RRL')
+  })
+  it('only L on: the user plays L, the app sounds R', () => {
+    expect(hands(audibleNotes(both, { L: true, R: false }))).toBe('RR')
+  })
+  it('only R on: the user plays R, the app sounds L', () => {
+    expect(hands(audibleNotes(both, { L: false, R: true }))).toBe('L')
+  })
+  it('both hands off: both sound', () => {
+    expect(hands(audibleNotes(both, { L: false, R: false }))).toBe('RRL')
   })
 })
 

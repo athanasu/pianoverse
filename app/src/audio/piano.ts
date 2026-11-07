@@ -1,4 +1,4 @@
-import type { Note } from '../song/types'
+import type { Hand, Note } from '../song/types'
 import type { PlaybackClock } from '../player/transport'
 import type { Loop } from '../player/types'
 
@@ -21,6 +21,12 @@ export function crossedNotes(notes: Note[], prev: number, now: number, loop: Loo
   if (now >= prev) return notes.filter((n) => n.start >= prev && n.start < now)
   if (!loop) return []
   return notes.filter((n) => (n.start >= prev && n.start < loop.b) || (n.start >= loop.a && n.start < now))
+}
+
+// The hand you practise (the only one switched on) is silent; the app plays the other. Both on or both off: both sound.
+export function audibleNotes(notes: Note[], hands: Record<Hand, boolean>): Note[] {
+  if (hands.L === hands.R) return notes
+  return notes.filter((n) => !hands[n.hand])
 }
 
 export function midiToToneName(midi: number): string {

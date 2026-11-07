@@ -187,3 +187,22 @@ it('shows one chip per engine warning code, falling back to the engine message',
     'The tempo drifts.',
   ])
 })
+
+it('toggling the right hand off while playing sounds the right hand and silences the left', async () => {
+  const user = userEvent.setup()
+  const sampler = fakeSampler()
+  vi.mocked(piano.createSampler).mockResolvedValueOnce(sampler)
+  renderAt('/song/demo')
+  await screen.findByText('Demo · Am F C G')
+  await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
+  await user.click(screen.getByRole('button', { name: 'Αναπαραγωγή' }))
+  vi.mocked(sampler.releaseAll).mockClear()
+  await user.click(screen.getByRole('button', { name: 'Δεξί χέρι' }))
+  expect(sampler.releaseAll).toHaveBeenCalled()
+  vi.mocked(sampler.trigger).mockClear()
+  // Jump to ~5.1 s: both hands play at 5.33 s (demo: left hand <= MIDI 55, right hand >= MIDI 71).
+  fireEvent.keyDown(screen.getByRole('slider'), { key: 'ArrowRight' })
+  await waitFor(() => expect(sampler.trigger).toHaveBeenCalled(), { timeout: 2000 })
+  const octaves = vi.mocked(sampler.trigger).mock.calls.map(([name]) => Number(name.slice(-1)))
+  expect(octaves.every((o) => o >= 4)).toBe(true)
+})

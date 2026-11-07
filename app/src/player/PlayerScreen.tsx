@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useShallow } from 'zustand/react/shallow'
-import { unlockAudio } from '../audio/piano'
+import { audibleNotes, unlockAudio } from '../audio/piano'
 import { useLang, useMessages } from '../i18n/lang'
 import { SongLoadError, loadSong, type SongLoadErrorCode } from '../song/loader'
 import { availableLevels, type Song } from '../song/types'
@@ -21,7 +21,9 @@ function Player({ song }: { song: Song }) {
   const clock = useMemo(() => new TransportClock(song.durationSec), [song])
   const levels = useMemo(() => availableLevels(song), [song])
 
-  const { level, speed, loop, card } = usePlayer(useShallow((s) => ({ level: s.level, speed: s.speed, loop: s.loop, card: s.card })))
+  const { level, hands, speed, loop, card } = usePlayer(
+    useShallow((s) => ({ level: s.level, hands: s.hands, speed: s.speed, loop: s.loop, card: s.card })),
+  )
   const notes = song.arrangements[level]?.notes ?? []
   const notesRef = useRef(notes)
   notesRef.current = notes
@@ -34,10 +36,12 @@ function Player({ song }: { song: Song }) {
   useEffect(() => clock.setLoop(loop), [clock, loop])
 
   const playing = useClockPlaying(clock)
-  const piano = usePiano(clock, notesRef)
+  // Hands are read at tick time so a toggle takes effect on the next scheduled note.
+  const getAudibleNotes = useCallback(() => audibleNotes(notesRef.current, usePlayer.getState().hands), [])
+  const piano = usePiano(clock, getAudibleNotes)
   useWakeLock(playing)
   const { silence } = piano
-  useEffect(() => silence(), [level, silence])
+  useEffect(() => silence(), [level, hands, silence])
 
   const togglePlay = () => {
     unlockAudio()

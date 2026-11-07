@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { PianoEngine, createSampler } from '../audio/piano'
 import type { Note } from '../song/types'
 import type { PlaybackClock } from './transport'
@@ -48,7 +48,8 @@ const PLAY_WAIT_MS = 8000
 const FAILED_TOAST_MS = 5000
 
 // Loads the piano on mount (decoding works while the audio context is still suspended).
-export function usePiano(clock: PlaybackClock, notesRef: RefObject<Note[]>) {
+// `getNotes` is read on every engine tick, so it must return the notes to sound right now.
+export function usePiano(clock: PlaybackClock, getNotes: () => Note[]) {
   const engine = useRef<PianoEngine | null>(null)
   const gen = useRef(0)
   const pending = useRef<Promise<void> | null>(null)
@@ -64,7 +65,7 @@ export function usePiano(clock: PlaybackClock, notesRef: RefObject<Note[]>) {
     pending.current = createSampler().then(
       (sampler) => {
         if (gen.current !== mine) return sampler.dispose()
-        engine.current = new PianoEngine(clock, sampler, () => notesRef.current ?? [])
+        engine.current = new PianoEngine(clock, sampler, getNotes)
         engine.current.start()
         setStatus('ready')
       },
@@ -74,7 +75,7 @@ export function usePiano(clock: PlaybackClock, notesRef: RefObject<Note[]>) {
         setFailures((n) => n + 1)
       },
     )
-  }, [clock, notesRef])
+  }, [clock, getNotes])
 
   useEffect(() => {
     load()
@@ -119,5 +120,5 @@ export function usePiano(clock: PlaybackClock, notesRef: RefObject<Note[]>) {
   const toast: 'loading' | 'failed' | null =
     waiting ? 'loading' : status === 'failed' && failures !== hiddenFailures ? 'failed' : null
 
-  return { status, waiting, toast, whenLoaded, cancelWait, silence }
+  return { waiting, toast, whenLoaded, cancelWait, silence }
 }
