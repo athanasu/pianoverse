@@ -12,6 +12,12 @@ dependencies = [
   "setuptools<81",
   "mir_eval>=0.7",
   "pydantic>=2.6",
+  "torch>=2.2,<2.9",
+  "torchaudio>=2.2,<2.9",
+  "demucs==4.0.1",
+  "basic-pitch>=0.4",
+  "piano-transcription-inference>=0.0.6",
+  "beat-this",
 ]
 
 [project.scripts]
@@ -31,3 +37,6 @@ dev = ["pytest>=8"]
 testpaths = ["tests"]
 addopts = "-m 'not slow'"
 markers = ["slow: needs ML models and real audio (minutes)"]
+
+[tool.uv.sources]
+beat-this = { url = "https://github.com/CPJKU/beat_this/archive/main.zip" }
