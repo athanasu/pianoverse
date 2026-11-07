@@ -41,3 +41,9 @@ def test_beat_grid_covers_lead_in_before_first_beat():
     assert np.isclose(grid, 0.3).any()
     assert np.isclose(grid, 0.55).any()
     assert grid[-1] >= 1.5
+
+
+def test_beat_grid_replaces_near_zero_first_point_with_zero():
+    grid = beat_grid([0.03, 0.53, 1.03], duration=1.5, subdivisions=2)
+    assert grid[0] == 0.0
+    assert not np.isclose(grid, 0.03).any()

@@ -1,7 +1,7 @@
 import pytest
 
 from pianoverse_engine.arrange.levels import (
-    arrange_easy, arrange_hard, arrange_medium, arrange_original,
+    MIN_ARRANGED_NOTE, arrange_easy, arrange_hard, arrange_medium, arrange_original,
 )
 from pianoverse_engine.models import Arrangement, ChordSegment, RawNote
 
@@ -78,3 +78,9 @@ def test_hard_adds_harmony_to_the_right_hand():
 def test_original_splits_hands_at_middle_c():
     arr = arrange_original([RawNote(48, 0, 1, 70), RawNote(64, 0, 1, 70)])
     assert [(n.pitch, n.hand) for n in arr.notes] == [(48, "L"), (64, "R")]
+
+
+def test_hard_has_no_sliver_notes_when_beats_start_just_after_zero():
+    beats = [0.03 + i * 0.5 for i in range(16)]
+    arr = arrange_hard(MELODY, CHORDS, beats, DOWNBEATS, DURATION)
+    assert min(n.end - n.start for n in arr.notes) >= MIN_ARRANGED_NOTE

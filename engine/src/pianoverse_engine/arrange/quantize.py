@@ -19,7 +19,10 @@ def beat_grid(beats: list[float], duration: float, subdivisions: int) -> np.ndar
     grid = np.asarray(points)
     grid = grid[grid >= -1e-9]
     if grid[0] > 1e-9:
-        grid = np.concatenate([[0.0], grid])
+        if grid[0] < 0.5 * step:
+            grid[0] = 0.0   # a near-zero first point would only yield sliver notes
+        else:
+            grid = np.concatenate([[0.0], grid])
     return grid
 
 

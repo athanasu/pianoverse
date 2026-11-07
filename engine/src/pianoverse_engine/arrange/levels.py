@@ -9,10 +9,12 @@ SPLIT = 60                 # middle C: right hand at/above, left hand below
 R_VEL, HARMONY_VEL, L_VEL = 80, 64, 60
 ON_BEAT_TOLERANCE = 0.03
 EPS = 1e-6
+MIN_ARRANGED_NOTE = 0.08   # seconds; shorter notes are unplayable slivers
 
 
 def _sorted(notes: list[Note]) -> Arrangement:
-    return Arrangement(notes=sorted(notes, key=lambda n: (n.start, n.pitch)))
+    kept = [n for n in notes if n.end - n.start >= MIN_ARRANGED_NOTE]
+    return Arrangement(notes=sorted(kept, key=lambda n: (n.start, n.pitch)))
 
 
 def _melody(melody: list[RawNote], beats: list[float], duration: float, subdivisions: int) -> list[RawNote]:
