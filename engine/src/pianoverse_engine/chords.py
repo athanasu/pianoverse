@@ -30,11 +30,13 @@ def _bounds(beats: list[float], duration: float) -> np.ndarray:
 
 def _segment_chroma(y: np.ndarray, sr: int, bounds: np.ndarray) -> np.ndarray:
     """(n_segments, 12) unit-norm chroma; silent segments are all-zero rows."""
+    n = len(bounds) - 1
+    if np.max(np.abs(y), initial=0.0) == 0:
+        return np.zeros((n, 12))
     chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP)
     c_times = librosa.times_like(chroma, sr=sr, hop_length=HOP)
     rms = librosa.feature.rms(y=y, hop_length=HOP)[0]
     r_times = librosa.times_like(rms, sr=sr, hop_length=HOP)
-    n = len(bounds) - 1
     out = np.zeros((n, 12))
     energy = np.zeros(n)
     for i, (a, b) in enumerate(zip(bounds[:-1], bounds[1:])):

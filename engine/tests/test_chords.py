@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from helpers import synth
-from pianoverse_engine.chords import recognize_chords
+from pianoverse_engine.chords import _merge_ranges, recognize_chords
 
 SR = 22050
 BEATS = [i * 0.5 for i in range(1, 16)]
@@ -36,3 +36,16 @@ def test_slash_chord_from_bass_stem():
 def test_silence_has_no_chords():
     segments, _ = recognize_chords(np.zeros(SR * 4, dtype=np.float32), SR, BEATS[:7], duration=4.0)
     assert segments == []
+
+
+def test_merge_ranges():
+    assert _merge_ranges([]) == []
+    assert _merge_ranges([(0.0, 1.0), (1.0, 2.0)]) == [(0.0, 2.0)]
+    assert _merge_ranges([(0.0, 1.0), (2.0, 3.0)]) == [(0.0, 1.0), (2.0, 3.0)]
+
+
+def test_lone_note_is_flagged_uncertain():
+    y = synth([(60, 0, 4)], SR)
+    segments, uncertain = recognize_chords(y, SR, BEATS[:7], duration=4.0)
+    assert len(segments) == 1
+    assert uncertain == [(segments[0].start, segments[0].end)]
