@@ -50,8 +50,8 @@ it('loads a song and drives the controls', async () => {
   expect(usePlayer.getState().level).toBe('easy')
   expect(screen.getByRole('button', { name: 'Εύκολο' })).toHaveAttribute('aria-pressed', 'true')
 
-  await user.click(screen.getByRole('button', { name: 'Ταχύτητα' }))
-  expect(screen.getByRole('button', { name: 'Ταχύτητα' })).toHaveTextContent('25%')
+  await user.click(screen.getByRole('button', { name: /^Ταχύτητα/ }))
+  expect(screen.getByRole('button', { name: 'Ταχύτητα 25%' })).toHaveTextContent('25%')
 
   await user.click(screen.getByRole('button', { name: 'Αναπαραγωγή' }))
   expect(screen.getByRole('button', { name: 'Παύση' })).toBeInTheDocument()

@@ -19,8 +19,8 @@ test('library → player → play, loop, level, speed → back → language', as
 
   await page.getByRole('button', { name: 'Εύκολο' }).click()
   await expect(page.getByRole('button', { name: 'Εύκολο' })).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('button', { name: 'Ταχύτητα' }).click()
-  await expect(page.getByRole('button', { name: 'Ταχύτητα' })).toHaveText('25%')
+  await page.getByRole('button', { name: /^Ταχύτητα/ }).click()
+  await expect(page.getByRole('button', { name: 'Ταχύτητα 25%', exact: true })).toHaveText('25%')
 
   await page.getByRole('link', { name: 'Πίσω στη βιβλιοθήκη' }).click()
   await page.getByRole('button', { name: 'EN' }).click()

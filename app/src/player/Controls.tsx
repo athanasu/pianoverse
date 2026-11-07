@@ -98,6 +98,7 @@ export function Controls({ clock, duration, playing, onTogglePlay }: Props) {
   const t = useClockTime(clock)
   const { speed, hands, loop, names } = usePlayer(useShallow((s) => ({ speed: s.speed, hands: s.hands, loop: s.loop, names: s.names })))
   const { cycleSpeed, toggleHand, setLoop, toggleNames } = usePlayer.getState()
+  const pct = `${Math.round(speed * 100)}%`
 
   return (
     <div className="controls">
@@ -108,7 +109,7 @@ export function Controls({ clock, duration, playing, onTogglePlay }: Props) {
       <Timeline position={t} duration={duration} loop={loop} label={m.player.timeline} onSeek={(x) => clock.seek(x)} onLoop={setLoop} />
       <button type="button" className="ctl" aria-pressed={loop !== null} aria-label={m.player.loop}
         onClick={() => setLoop(loop ? null : defaultLoop(clock.now(), duration))}><LoopIcon /></button>
-      <button type="button" className="ctl mono" aria-label={m.player.speed} onClick={cycleSpeed}>{`${Math.round(speed * 100)}%`}</button>
+      <button type="button" className="ctl mono" aria-label={`${m.player.speed} ${pct}`} onClick={cycleSpeed}>{pct}</button>
       <button type="button" className="ctl" aria-pressed={hands.L} aria-label={m.player.leftHand} onClick={() => toggleHand('L')}>
         <span className="dot left" aria-hidden="true" />{m.player.leftShort}
       </button>
