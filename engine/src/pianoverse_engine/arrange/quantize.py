@@ -17,7 +17,10 @@ def beat_grid(beats: list[float], duration: float, subdivisions: int) -> np.ndar
         points.extend(np.linspace(a, c, subdivisions, endpoint=False))
     points.append(float(full[-1]))
     grid = np.asarray(points)
-    return grid[grid >= -1e-9]
+    grid = grid[grid >= -1e-9]
+    if grid[0] > 1e-9:
+        grid = np.concatenate([[0.0], grid])
+    return grid
 
 
 def quantize_monophonic(notes: list[RawNote], grid: np.ndarray) -> list[RawNote]:
