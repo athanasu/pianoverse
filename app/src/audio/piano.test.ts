@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Note } from '../song/types'
 import { TransportClock } from '../player/transport'
-import { AUDIO_LATENCY, PianoEngine, crossedNotes, midiToToneName, salamanderUrls, type SamplerLike } from './piano'
+import { AUDIO_LATENCY, PianoEngine, VISUAL_OFFSET, crossedNotes, midiToToneName, salamanderUrls, visualTime, type SamplerLike } from './piano'
 
 const n = (pitch: number, start: number, end = start + 0.5): Note => ({ pitch, start, end, velocity: 100, hand: 'R' })
 const notes = [n(60, 0), n(62, 1), n(64, 2), n(65, 3)]
@@ -16,6 +16,13 @@ describe('crossedNotes', () => {
   })
   it('a backwards jump without a loop sounds nothing', () => {
     expect(crossedNotes(notes, 3, 0.5, null)).toEqual([])
+  })
+})
+
+describe('visualTime', () => {
+  it('draws VISUAL_OFFSET wall seconds behind, measured in song time', () => {
+    expect(visualTime(10, 1)).toBeCloseTo(10 - VISUAL_OFFSET)
+    expect(visualTime(10, 0.25)).toBeCloseTo(10 - VISUAL_OFFSET * 0.25)
   })
 })
 

@@ -9,6 +9,11 @@ export const VISUAL_OFFSET = AUDIO_LATENCY
 // A clock notification that moves time further than this (or backwards) is a seek/restart, not normal playback.
 const DISCONTINUITY = 0.5
 
+// Audio sounds VISUAL_OFFSET wall seconds late; at a slower rate that is fewer song seconds.
+export function visualTime(now: number, rate: number): number {
+  return now - VISUAL_OFFSET * rate
+}
+
 const SALAMANDER_BASE = 'https://tonejs.github.io/audio/salamander/'
 const TONE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 

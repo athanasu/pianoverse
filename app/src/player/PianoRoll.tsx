@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { VISUAL_OFFSET } from '../audio/piano'
+import { visualTime } from '../audio/piano'
 import type { Lang } from '../i18n/messages'
 import type { Note, Tempo } from '../song/types'
 import { layoutKeyboard } from './keyboard'
@@ -52,7 +52,7 @@ export function PianoRoll({ clock, tempo, notes, lo, hi, label, getView }: Props
       const view = viewRef.current()
       const keyboardHeight = Math.min(96, Math.max(64, size.h * 0.3))
       drawFrame(ctx, buildFrame({
-        notes: notesRef.current, layout, tempo, now: clock.now() - VISUAL_OFFSET, lookahead: LOOKAHEAD_SEC,
+        notes: notesRef.current, layout, tempo, now: visualTime(clock.now(), clock.rate()), lookahead: LOOKAHEAD_SEC,
         width: size.w, height: size.h, keyboardHeight, hands: view.hands, names: view.names, lang: view.lang,
       }))
       raf = requestAnimationFrame(frame)
