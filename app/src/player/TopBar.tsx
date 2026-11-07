@@ -1,9 +1,24 @@
 import { Link } from 'react-router'
 import { useLang, useMessages } from '../i18n/lang'
 import { keyName } from '../i18n/music'
-import type { Level, Song } from '../song/types'
+import type { Messages } from '../i18n/messages'
+import type { Level, Song, SongWarning } from '../song/types'
 import { Alert, ChevronLeft, Keys } from '../ui/icons'
 import { usePlayer } from './store'
+
+function warningChips(warnings: SongWarning[], texts: Messages['warnings']): { code: string; text: string }[] {
+  const byCode = new Map<string, { count: number; message: string }>()
+  for (const w of warnings) {
+    const seen = byCode.get(w.code)
+    if (seen) seen.count++
+    else byCode.set(w.code, { count: 1, message: w.message })
+  }
+  const known: Partial<Record<string, (n: number) => string>> = texts
+  return [...byCode].map(([code, { count, message }]) => ({
+    code,
+    text: Object.hasOwn(known, code) ? known[code]!(count) : message,
+  }))
+}
 
 export function TopBar({ song, levels }: { song: Song; levels: Level[] }) {
   const m = useMessages()
@@ -12,7 +27,7 @@ export function TopBar({ song, levels }: { song: Song; levels: Level[] }) {
   const setLevel = usePlayer((s) => s.setLevel)
   const card = usePlayer((s) => s.card)
   const toggleCard = usePlayer((s) => s.toggleCard)
-  const uncertain = song.warnings.filter((w) => w.code === 'chords_uncertain').length
+  const chips = warningChips(song.warnings, m.warnings)
   const [beatsPerBar, beatUnit] = song.timeSignature
 
   return (
@@ -22,7 +37,9 @@ export function TopBar({ song, levels }: { song: Song; levels: Level[] }) {
         <div className="title">{song.title}</div>
         <div className="subtitle">{`${keyName(song.key.tonic, song.key.mode, lang)} · ${Math.round(song.tempo.bpm)} BPM · ${beatsPerBar}/${beatUnit}`}</div>
       </div>
-      {uncertain > 0 && <div className="warn-chip"><Alert />{m.player.uncertain(uncertain)}</div>}
+      {chips.map(({ code, text }) => (
+        <div key={code} className="warn-chip" title={text}><Alert /><span className="warn-text">{text}</span></div>
+      ))}
       <div className="segmented" role="group" aria-label={m.player.levelGroup}>
         {levels.map((l) => (
           <button key={l} type="button" aria-pressed={l === level} onClick={() => setLevel(l)}>{m.player.levels[l]}</button>

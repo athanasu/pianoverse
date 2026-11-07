@@ -31,7 +31,11 @@ const el = {
     pianoLoading: 'Φορτώνω τον ήχο του πιάνου…',
     pianoFailed: 'Δεν φόρτωσε ο ήχος του πιάνου· οι νότες συνεχίζουν χωρίς ήχο.',
     rotate: 'Γύρισε το κινητό οριζόντια',
-    uncertain: (n: number) => (n === 1 ? 'Αβέβαιες συγχορδίες σε 1 σημείο' : `Αβέβαιες συγχορδίες σε ${n} σημεία`),
+  },
+  // One chip per engine warning code; unknown codes show the engine's own message.
+  warnings: {
+    chords_uncertain: (n: number) => (n === 1 ? 'Αβέβαιες συγχορδίες σε 1 σημείο' : `Αβέβαιες συγχορδίες σε ${n} σημεία`),
+    melody_sparse: (_n: number) => 'Η μελωδία ακούγεται μόνο σε λίγα σημεία του κομματιού.',
   },
   errors: {
     network: 'Δεν μπόρεσα να φορτώσω το κομμάτι. Έλεγξε τη σύνδεση.',
@@ -73,7 +77,10 @@ const en: Messages = {
     pianoLoading: 'Loading the piano sound…',
     pianoFailed: "The piano sound didn't load; the notes keep going without sound.",
     rotate: 'Turn your phone sideways',
-    uncertain: (n: number) => (n === 1 ? 'Uncertain chords in 1 place' : `Uncertain chords in ${n} places`),
+  },
+  warnings: {
+    chords_uncertain: (n: number) => (n === 1 ? 'Uncertain chords in 1 place' : `Uncertain chords in ${n} places`),
+    melody_sparse: (_n: number) => 'The melody was only found in parts of the song.',
   },
   errors: {
     network: "Couldn't load the song. Check your connection.",

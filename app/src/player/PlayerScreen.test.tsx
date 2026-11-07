@@ -158,3 +158,23 @@ it('stops waiting for a slow piano after 8 s and plays silently', async () => {
   expect(screen.getByRole('button', { name: 'Παύση' })).toBeInTheDocument()
   expect(screen.queryByText(LOADING)).not.toBeInTheDocument()
 })
+
+it('shows one chip per engine warning code, falling back to the engine message', async () => {
+  const song = JSON.parse(demo)
+  song.warnings = [
+    { code: 'chords_uncertain', message: 'x', start: 1, end: 2 },
+    { code: 'chords_uncertain', message: 'x', start: 5, end: 6 },
+    { code: 'melody_sparse', message: 'y' },
+    { code: 'tempo_drift', message: 'The tempo drifts.' },
+    { code: 'tempo_drift', message: 'The tempo drifts again.' },
+  ]
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(song), { status: 200 })))
+  const { container } = renderAt('/song/demo')
+  await screen.findByText('Demo · Am F C G')
+  const chips = [...container.querySelectorAll('.warn-chip')].map((c) => c.textContent)
+  expect(chips).toEqual([
+    'Αβέβαιες συγχορδίες σε 2 σημεία',
+    'Η μελωδία ακούγεται μόνο σε λίγα σημεία του κομματιού.',
+    'The tempo drifts.',
+  ])
+})
