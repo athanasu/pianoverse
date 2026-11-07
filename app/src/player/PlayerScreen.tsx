@@ -19,7 +19,6 @@ function Player({ song }: { song: Song }) {
   const m = useMessages()
   const clock = useMemo(() => new TransportClock(song.durationSec), [song])
   const levels = useMemo(() => availableLevels(song), [song])
-  useEffect(() => usePlayer.getState().reset(levels), [levels])
 
   const { level, speed, loop, card } = usePlayer(useShallow((s) => ({ level: s.level, speed: s.speed, loop: s.loop, card: s.card })))
   const notes = song.arrangements[level]?.notes ?? []
@@ -72,7 +71,12 @@ export function PlayerScreen() {
     let alive = true
     setState({})
     loadSong(id).then(
-      (song) => alive && setState({ song }),
+      (song) => {
+        if (!alive) return
+        // Reset before Player first renders, so its clock never sees the previous song's loop.
+        usePlayer.getState().reset(availableLevels(song))
+        setState({ song })
+      },
       (e: unknown) => alive && setState({ error: e instanceof SongLoadError ? e.code : 'network' }),
     )
     return () => {

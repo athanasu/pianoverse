@@ -85,3 +85,12 @@ it('disposes a sampler that resolves after unmount and never starts the engine',
   expect(start).not.toHaveBeenCalled()
   start.mockRestore()
 })
+
+it('opens every song fresh, whatever loop the previous song left in the store', async () => {
+  usePlayer.setState({ loop: { a: 10, b: 15 } })
+  renderAt('/song/demo')
+  await screen.findByText('Demo · Am F C G')
+  expect(screen.getByRole('button', { name: 'Επανάληψη A–B' })).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByText(/^0:00 \//)).toBeInTheDocument()
+  expect(usePlayer.getState().loop).toBeNull()
+})
