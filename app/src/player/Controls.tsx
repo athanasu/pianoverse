@@ -44,8 +44,14 @@ function Timeline({ position, duration, loop, label, onSeek, onLoop }: TimelineP
   const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current
     drag.current = null
-    if (d?.moved && preview) onLoop(preview)
-    else if (d) onSeek(timeAt(e.clientX))
+    if (d?.moved) {
+      const t = timeAt(e.clientX)
+      onLoop({ a: Math.min(d.t0, t), b: Math.max(d.t0, t) })
+    } else if (d) onSeek(timeAt(e.clientX))
+    setPreview(null)
+  }
+  const onPointerCancel = () => {
+    drag.current = null
     setPreview(null)
   }
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -67,6 +73,7 @@ function Timeline({ position, duration, loop, label, onSeek, onLoop }: TimelineP
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       onKeyDown={onKeyDown}
     >
       <div className="track">

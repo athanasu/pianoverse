@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { useLang } from '../i18n/lang'
+import * as piano from '../audio/piano'
 import { PlayerScreen } from './PlayerScreen'
 import { usePlayer } from './store'
 
@@ -67,4 +68,20 @@ it('reports a missing song', async () => {
   renderAt('/song/nope')
   expect(await screen.findByText('Δεν βρέθηκε αυτό το κομμάτι.')).toBeInTheDocument()
   await waitFor(() => expect(screen.getByRole('link', { name: 'Πίσω στη βιβλιοθήκη' })).toBeInTheDocument())
+})
+
+it('disposes a sampler that resolves after unmount and never starts the engine', async () => {
+  const user = userEvent.setup()
+  const dispose = vi.fn()
+  let resolve!: (s: piano.SamplerLike) => void
+  vi.mocked(piano.createSampler).mockReturnValueOnce(new Promise((r) => (resolve = r)))
+  const start = vi.spyOn(piano.PianoEngine.prototype, 'start')
+  const { unmount } = renderAt('/song/demo')
+  await screen.findByText('Demo · Am F C G')
+  await user.click(screen.getByRole('button', { name: 'Αναπαραγωγή' }))
+  unmount()
+  resolve({ trigger: vi.fn(), now: () => 0, dispose })
+  await waitFor(() => expect(dispose).toHaveBeenCalledTimes(1))
+  expect(start).not.toHaveBeenCalled()
+  start.mockRestore()
 })

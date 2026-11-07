@@ -37,7 +37,7 @@ export function useWakeLock(active: boolean): void {
     )
     return () => {
       cancelled = true
-      void lock?.release()
+      lock?.release().catch(() => {})
     }
   }, [active])
 }
@@ -47,6 +47,7 @@ export type PianoStatus = 'idle' | 'loading' | 'ready' | 'failed'
 export function usePiano(clock: PlaybackClock, notesRef: RefObject<Note[]>) {
   const engine = useRef<PianoEngine | null>(null)
   const started = useRef(false)
+  const gen = useRef(0)
   const [status, setStatus] = useState<PianoStatus>('idle')
 
   useEffect(() => {
@@ -57,19 +58,27 @@ export function usePiano(clock: PlaybackClock, notesRef: RefObject<Note[]>) {
     unlockAudio()
     if (started.current) return
     started.current = true
+    const mine = gen.current
     setStatus('loading')
     try {
       const sampler = await createSampler()
+      if (gen.current !== mine) {
+        sampler.dispose()
+        return
+      }
       engine.current = new PianoEngine(clock, sampler, () => notesRef.current ?? [])
       engine.current.start()
       setStatus('ready')
     } catch {
+      if (gen.current !== mine) return
+      started.current = false
       setStatus('failed')
     }
   }, [clock, notesRef])
 
   useEffect(
     () => () => {
+      gen.current++
       engine.current?.stop()
       engine.current = null
       started.current = false

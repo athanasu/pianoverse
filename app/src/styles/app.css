@@ -23,8 +23,8 @@ a { color: var(--left-hi); }
 .topbar-title .title { font-family: var(--font-display); font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-title .subtitle { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
 .warn-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); padding: 0 10px; height: 32px; border-radius: 999px; border: 1px solid var(--line); }
-.segmented { display: flex; padding: 3px; gap: 2px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
-.segmented button { height: 38px; padding: 0 14px; border: none; border-radius: 9px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; }
+.segmented { display: flex; padding: 0; gap: 2px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+.segmented button { height: 44px; padding: 0 14px; border: none; border-radius: 9px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; }
 .segmented button[aria-pressed='true'] { background: var(--right); color: var(--on-accent); }
 
 .chord-lane { height: 30px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 16px; }
@@ -57,7 +57,7 @@ a { color: var(--left-hi); }
 .thumb { position: absolute; top: -5px; width: 16px; height: 16px; margin-left: -8px; border-radius: 999px; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
 .loop-region { position: absolute; top: -5px; height: 16px; border-radius: 6px; background: rgba(77, 141, 255, 0.16); border: 1px solid var(--left-hi); }
 .loop-mark { position: absolute; top: -20px; transform: translateX(-50%); font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: var(--left-hi); }
-.ctl { height: 44px; padding: 0 12px; flex-shrink: 0; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.ctl { height: 44px; min-width: 44px; justify-content: center; padding: 0 12px; flex-shrink: 0; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
 .ctl[aria-pressed='true'] { color: var(--text); background: #1E2538; }
 .ctl.mono { font-family: var(--font-mono); color: var(--text); }
 .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--line); }
