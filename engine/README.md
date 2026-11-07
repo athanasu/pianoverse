@@ -28,7 +28,7 @@ uv run pytest -m slow    # real models (minutes)
 
 ## Evaluate
 
-Put songs in `samples/` (git-ignored). Optional reference chords go in `samples/<name>.chords.lab` (MIREX format).
+Put songs in `samples/` (git-ignored). Optional reference chords go in `samples/<name>.chords.lab` (MIREX format). To force a song's type (e.g. a solo-piano recording the stem classifier calls instrumental), add `samples/<name>.mode` containing `vocal`, `instrumental` or `solo_piano`.
 
 ```bash
 uv run python -m pianoverse_engine.evaluate samples out/eval

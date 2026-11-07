@@ -20,6 +20,7 @@ from .theory import pc_of, to_mirex
 
 AUDIO_EXT = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac"}
 RENDER_SR = 22050
+FORCED_MODES = {"vocal", "instrumental", "solo_piano"}
 
 
 def _peak_normalize(x: np.ndarray) -> np.ndarray:
@@ -56,8 +57,18 @@ def chord_score(song: Song, lab: Path) -> float:
     return float(scores["majmin"])
 
 
+def _forced_mode(sidecar: Path) -> str | None:
+    if not sidecar.exists():
+        return None
+    mode = sidecar.read_text(encoding="utf-8").strip()
+    if mode not in FORCED_MODES:
+        raise EngineError("bad_mode", "Μη έγκυρος τύπος στο αρχείο .mode.")
+    return mode
+
+
 def _evaluate_song(path: Path, samples: Path, dest: Path, started: float) -> str:
-    song = run_pipeline(path, dest / "work", title=path.stem)
+    mode = _forced_mode(samples / f"{path.stem}.mode")
+    song = run_pipeline(path, dest / "work", title=path.stem, mode=mode or "auto")
     write_outputs(song, dest)
     original, sr = load_mono(dest / "work" / "input.wav", sr=RENDER_SR)
     for level, arr in song.arrangements.items():
@@ -65,7 +76,7 @@ def _evaluate_song(path: Path, samples: Path, dest: Path, started: float) -> str
     lab = samples / f"{path.stem}.chords.lab"
     score = f"{chord_score(song, lab):.0%}" if lab.exists() else "—"
     return (
-        f"| {path.stem} | {song.sourceType} | {song.key.tonic} {song.key.mode} | "
+        f"| {path.stem} | {song.sourceType} ({'ορίστηκε' if mode else 'αυτόματα'}) | {song.key.tonic} {song.key.mode} | "
         f"{song.tempo.bpm:.0f} | {len(song.chords)} | {score} | {len(song.warnings)} | "
         f"{time.time() - started:.0f}s |"
     )
