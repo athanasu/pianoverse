@@ -21,6 +21,8 @@ export function advance(s: TransportState, dt: number): TransportState {
   return { ...s, position: p }
 }
 
+// Loop wraps do not notify: while a loop is set, now() going backwards means the playhead wrapped.
+// isPlaying() does not advance time; the end of the song is noticed and notified on the next now().
 export interface PlaybackClock {
   now(): number
   isPlaying(): boolean
@@ -34,9 +36,16 @@ export interface PlaybackClock {
   subscribe(fn: () => void): () => void
 }
 
+function sameLoop(x: Loop | null, y: Loop | null): boolean {
+  if (x === null || y === null) return x === y
+  return x.a === y.a && x.b === y.b
+}
+
 export class TransportClock implements PlaybackClock {
   private state: TransportState
   private last: number
+  // The state listeners were last notified of; mutators compare against it to skip no-op notifications.
+  private snapshot: TransportState
   private readonly timeSource: () => number
   private readonly listeners = new Set<() => void>()
 
@@ -44,10 +53,11 @@ export class TransportClock implements PlaybackClock {
     this.timeSource = timeSource
     this.last = timeSource()
     this.state = { position: 0, playing: false, rate: 1, loop: null, duration }
+    this.snapshot = this.state
   }
 
   now(): number {
-    this.sync()
+    this.sync(true)
     return this.state.position
   }
 
@@ -64,37 +74,37 @@ export class TransportClock implements PlaybackClock {
   }
 
   play(): void {
-    this.sync()
-    const atEnd = this.state.position >= this.state.duration
-    this.state = { ...this.state, playing: true, position: atEnd ? 0 : this.state.position }
-    this.emit()
+    this.sync(false)
+    const restart = this.state.position >= this.state.duration
+    this.state = { ...this.state, playing: true, position: restart ? 0 : this.state.position }
+    this.commit(restart)
   }
 
   pause(): void {
-    this.sync()
+    this.sync(false)
     this.state = { ...this.state, playing: false }
-    this.emit()
+    this.commit()
   }
 
   seek(t: number): void {
-    this.sync()
+    this.sync(false)
     this.state = { ...this.state, position: Math.min(this.state.duration, Math.max(0, t)) }
     this.emit()
   }
 
   setRate(rate: number): void {
-    this.sync()
+    this.sync(false)
     this.state = { ...this.state, rate }
-    this.emit()
+    this.commit()
   }
 
   setLoop(loop: Loop | null): void {
-    this.sync()
+    this.sync(false)
     const valid = loop && loop.b - loop.a >= MIN_LOOP ? loop : null
     let position = this.state.position
     if (valid && (position < valid.a || position >= valid.b)) position = valid.a
     this.state = { ...this.state, loop: valid, position }
-    this.emit()
+    this.commit()
   }
 
   subscribe(fn: () => void): () => void {
@@ -104,16 +114,26 @@ export class TransportClock implements PlaybackClock {
     }
   }
 
-  private sync(): void {
+  private sync(notifyOnStop: boolean): void {
     const t = this.timeSource()
     const dt = t - this.last
     this.last = t
-    const wasPlaying = this.state.playing
     this.state = advance(this.state, dt)
-    if (wasPlaying && !this.state.playing) this.emit()
+    if (notifyOnStop) this.commit()
+  }
+
+  // Emits only when what listeners last saw differs from the current state. `jumped` covers
+  // position discontinuities that are not visible in playing, rate or loop (restart from end).
+  private commit(jumped = false): void {
+    const s = this.state
+    const seen = this.snapshot
+    const changed =
+      jumped || s.playing !== seen.playing || s.rate !== seen.rate || !sameLoop(s.loop, seen.loop)
+    if (changed) this.emit()
   }
 
   private emit(): void {
+    this.snapshot = this.state
     for (const fn of this.listeners) fn()
   }
 }
