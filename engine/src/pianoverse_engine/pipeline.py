@@ -41,6 +41,11 @@ def _no_progress(stage: str, fraction: float) -> None:
     pass
 
 
+def _mmss(seconds: float) -> str:
+    total = int(seconds)
+    return f"{total // 60}:{total % 60:02d}"
+
+
 def _warnings(melody: list[RawNote], duration: float,
               uncertain: list[tuple[float, float]]) -> list[SongWarning]:
     out: list[SongWarning] = []
@@ -49,7 +54,7 @@ def _warnings(melody: list[RawNote], duration: float,
         out.append(SongWarning(code="melody_sparse",
                                message=f"Η μελωδία εντοπίστηκε μόνο στο {coverage:.0%} του κομματιού."))
     for start, end in uncertain:
-        out.append(SongWarning(code="chords_uncertain", message="Αβέβαιες συγχορδίες σε αυτό το σημείο.",
+        out.append(SongWarning(code="chords_uncertain", message=f"Αβέβαιες συγχορδίες στο {_mmss(start)}–{_mmss(end)}.",
                                start=round(start, 2), end=round(end, 2)))
     return out
 

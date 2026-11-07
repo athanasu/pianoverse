@@ -7,7 +7,7 @@ import soundfile as sf
 from helpers import synth
 from pianoverse_engine.errors import PipelineError
 from pianoverse_engine.models import RawNote, Song
-from pianoverse_engine.pipeline import Engines, run_pipeline
+from pianoverse_engine.pipeline import Engines, _mmss, _warnings, run_pipeline
 from pianoverse_engine.separate import Stems
 
 SR = 44100
@@ -113,3 +113,15 @@ def test_overtone_ghosts_do_not_garble_the_melody(tmp_path, song_file):
     song = run_pipeline(song_file, tmp_path / "work", title="Test", engines=fake.engines())
     right = [n.pitch % 12 for n in song.arrangements["easy"].notes if n.hand == "R"]
     assert right == [n.pitch % 12 for n in MELODY]
+
+
+def test_mmss_formats_minutes_and_two_digit_seconds():
+    assert _mmss(80.4) == "1:20"
+    assert _mmss(5.9) == "0:05"
+
+
+def test_uncertain_chords_warning_names_the_time_range():
+    warnings = _warnings(MELODY, 12.0, [(80.0, 105.0)])
+    uncertain = [w for w in warnings if w.code == "chords_uncertain"]
+    assert [w.message for w in uncertain] == ["Αβέβαιες συγχορδίες στο 1:20–1:45."]
+    assert (uncertain[0].start, uncertain[0].end) == (80.0, 105.0)
