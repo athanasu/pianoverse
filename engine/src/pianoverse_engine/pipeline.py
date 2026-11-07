@@ -6,18 +6,16 @@ from typing import Literal
 
 from .arrange.levels import arrange_easy, arrange_hard, arrange_medium, arrange_original
 from .audio import normalize
-from .chords import recognize_chords
 from .classify import classify, lead_stem
 from .errors import PipelineError
 from .key import chroma_profile, estimate_key
 from .melody import clean_notes, drop_ghost_notes, skyline
-from .models import Arrangement, RawNote, Song, SongWarning
+from .models import Arrangement, ChordSegment, RawNote, Song, SongWarning
 from .rhythm import tempo_from_beats, time_signature
-from .separate import Stems
+from .separate import HARMONIC_STEMS, Stems
 
 Mode = Literal["auto", "vocal", "instrumental", "solo_piano"]
 ProgressFn = Callable[[str, float], None]
-HARMONIC_STEMS = ("other", "guitar", "piano")
 SPARSE_MELODY = 0.3
 
 
@@ -27,14 +25,18 @@ class Engines:
     track_beats: Callable[[Path], tuple[list[float], list[float]]]
     transcribe_polyphonic: Callable[[Path], list[RawNote]]
     transcribe_piano: Callable[[Path], list[RawNote]]
+    recognize_chords: Callable[[Stems, list[float], float],
+                               tuple[list[ChordSegment], list[tuple[float, float]]]]
 
 
 def default_engines() -> Engines:
     from .beats import track_beats
+    from .chords_btc import recognize_chords_btc
     from .separate import separate
     from .transcribe import transcribe_piano, transcribe_polyphonic
     return Engines(separate=separate, track_beats=track_beats,
-                   transcribe_polyphonic=transcribe_polyphonic, transcribe_piano=transcribe_piano)
+                   transcribe_polyphonic=transcribe_polyphonic, transcribe_piano=transcribe_piano,
+                   recognize_chords=recognize_chords_btc)
 
 
 def _no_progress(stage: str, fraction: float) -> None:
@@ -78,10 +80,8 @@ def run_pipeline(
     beats, downbeats = engines.track_beats(norm)
     if len(beats) < 4:
         raise PipelineError("no_beats", "Δεν βρέθηκε σταθερός ρυθμός στο κομμάτι.")
-    harmonic = stems.mix(HARMONIC_STEMS)
-    bass = stems.mono("bass") if "bass" in stems.tracks else None
-    chords, uncertain = recognize_chords(harmonic, stems.sr, beats, duration, bass_y=bass)
-    key = estimate_key(chroma_profile(harmonic, stems.sr))
+    chords, uncertain = engines.recognize_chords(stems, beats, duration)
+    key = estimate_key(chroma_profile(stems.mix(HARMONIC_STEMS), stems.sr))
 
     full_piano: list[RawNote] = []
     if source_type == "solo_piano":

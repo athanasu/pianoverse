@@ -4,6 +4,7 @@ import librosa
 import numpy as np
 
 from .models import ChordSegment
+from .separate import HARMONIC_STEMS, Stems
 from .theory import QUALITY_INTERVALS, chord_pcs, chord_symbol, pc_name, pc_of
 
 HOP = 2048
@@ -143,3 +144,11 @@ def recognize_chords(
     if bass_y is not None:
         segments = with_bass(segments, bass_y, sr, bounds)
     return segments, _merge_ranges(uncertain)
+
+
+def recognize_chords_from_stems(
+    stems: Stems, beats: list[float], duration: float,
+) -> tuple[list[ChordSegment], list[tuple[float, float]]]:
+    """Template recognizer on the harmonic stems, with the bass stem for slash chords."""
+    bass = stems.mono("bass") if "bass" in stems.tracks else None
+    return recognize_chords(stems.mix(HARMONIC_STEMS), stems.sr, beats, duration, bass_y=bass)

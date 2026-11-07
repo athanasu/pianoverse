@@ -5,9 +5,11 @@ import pytest
 import soundfile as sf
 
 from helpers import synth
+from pianoverse_engine.chords import recognize_chords_from_stems
+from pianoverse_engine.chords_btc import recognize_chords_btc
 from pianoverse_engine.errors import PipelineError
-from pianoverse_engine.models import RawNote, Song
-from pianoverse_engine.pipeline import Engines, _mmss, _warnings, run_pipeline
+from pianoverse_engine.models import ChordSegment, RawNote, Song
+from pianoverse_engine.pipeline import Engines, _mmss, _warnings, default_engines, run_pipeline
 from pianoverse_engine.separate import Stems
 
 SR = 44100
@@ -26,6 +28,7 @@ class FakeEngines:
     def __init__(self, vocal_level: float = 1.0):   # 1.0 → vocals ≈ 35% of energy → "vocal"
         self.vocal_level = vocal_level
         self.calls: list[tuple[str, str]] = []
+        self.recognize_chords = recognize_chords_from_stems
 
     def separate(self, path: Path) -> Stems:
         chords = synth([(p, i * 2, i * 2 + 2) for i, (ps, _) in enumerate(PROGRESSION) for p in ps], SR)
@@ -51,7 +54,7 @@ class FakeEngines:
     def engines(self) -> Engines:
         return Engines(separate=self.separate, track_beats=self.track_beats,
                        transcribe_polyphonic=self.transcribe_polyphonic,
-                       transcribe_piano=self.transcribe_piano)
+                       transcribe_piano=self.transcribe_piano, recognize_chords=self.recognize_chords)
 
 
 @pytest.fixture
@@ -125,3 +128,22 @@ def test_uncertain_chords_warning_names_the_time_range():
     uncertain = [w for w in warnings if w.code == "chords_uncertain"]
     assert [w.message for w in uncertain] == ["Αβέβαιες συγχορδίες στο 1:20–1:45."]
     assert (uncertain[0].start, uncertain[0].end) == (80.0, 105.0)
+
+
+def test_pipeline_uses_the_chord_engine_with_stems_and_beats(tmp_path, song_file):
+    fake = FakeEngines()
+    seen = []
+
+    def recognize(stems, beats, duration):
+        seen.append((sorted(stems.tracks), len(beats), duration))
+        return [ChordSegment(start=0, end=12, symbol="Dm", root="D", quality="min")], [(0.0, 12.0)]
+
+    fake.recognize_chords = recognize
+    song = run_pipeline(song_file, tmp_path / "work", title="Test", engines=fake.engines())
+    assert [c.symbol for c in song.chords] == ["Dm"]
+    assert seen == [(["bass", "drums", "guitar", "other", "piano", "vocals"], 23, pytest.approx(song.durationSec))]
+    assert "chords_uncertain" in {w.code for w in song.warnings}
+
+
+def test_default_engines_recognize_chords_with_btc():
+    assert default_engines().recognize_chords is recognize_chords_btc

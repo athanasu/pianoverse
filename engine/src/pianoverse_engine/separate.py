@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
+HARMONIC_STEMS = ("other", "guitar", "piano")
+
 
 @dataclass
 class Stems:

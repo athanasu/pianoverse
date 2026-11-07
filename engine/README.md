@@ -19,6 +19,8 @@ uv run pianoverse-engine piano.m4a --out out/piano --mode solo_piano
 
 Writes `song.json` and `easy.mid`, `medium.mid`, `hard.mid` (and `original.mid` for solo piano). First run downloads model weights.
 
+Chords come from BTC (Bi-directional Transformer for Chord recognition, Park et al. ISMIR 2019), vendored in `src/pianoverse_engine/vendor/btc/` under its MIT license. Its 12 MB checkpoint is downloaded on first use to `~/.cache/pianoverse/` and verified by SHA-256.
+
 ## Test
 
 ```bash
