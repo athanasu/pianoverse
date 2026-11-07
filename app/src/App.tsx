@@ -1,7 +1,14 @@
+import { BrowserRouter, Route, Routes } from 'react-router'
+import { LibraryScreen } from './library/LibraryScreen'
+import { PlayerScreen } from './player/PlayerScreen'
+
 export function App() {
   return (
-    <main className="app">
-      <h1 className="wordmark">Pianoverse</h1>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LibraryScreen />} />
+        <Route path="/song/:id" element={<PlayerScreen />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
