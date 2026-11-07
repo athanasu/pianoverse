@@ -1,0 +1,33 @@
+[project]
+name = "pianoverse-engine"
+version = "0.1.0"
+description = "Song to playable piano arrangement"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "numpy>=1.26,<2",
+  "scipy>=1.11",
+  "librosa>=0.10.2",
+  "soundfile>=0.12",
+  "pretty_midi>=0.2.10",
+  "setuptools<81",
+  "mir_eval>=0.7",
+  "pydantic>=2.6",
+]
+
+[project.scripts]
+pianoverse-engine = "pianoverse_engine.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pianoverse_engine"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = ["slow: needs ML models and real audio (minutes)"]

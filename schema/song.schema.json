@@ -1,0 +1,293 @@
+{
+  "$defs": {
+    "Arrangement": {
+      "properties": {
+        "notes": {
+          "items": {
+            "$ref": "#/$defs/Note"
+          },
+          "title": "Notes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "notes"
+      ],
+      "title": "Arrangement",
+      "type": "object"
+    },
+    "ChordSegment": {
+      "properties": {
+        "start": {
+          "title": "Start",
+          "type": "number"
+        },
+        "end": {
+          "title": "End",
+          "type": "number"
+        },
+        "symbol": {
+          "title": "Symbol",
+          "type": "string"
+        },
+        "root": {
+          "title": "Root",
+          "type": "string"
+        },
+        "quality": {
+          "title": "Quality",
+          "type": "string"
+        },
+        "bass": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bass"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "symbol",
+        "root",
+        "quality"
+      ],
+      "title": "ChordSegment",
+      "type": "object"
+    },
+    "Key": {
+      "properties": {
+        "tonic": {
+          "title": "Tonic",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "major",
+            "minor"
+          ],
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tonic",
+        "mode"
+      ],
+      "title": "Key",
+      "type": "object"
+    },
+    "Note": {
+      "properties": {
+        "pitch": {
+          "maximum": 108,
+          "minimum": 21,
+          "title": "Pitch",
+          "type": "integer"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "number"
+        },
+        "end": {
+          "title": "End",
+          "type": "number"
+        },
+        "velocity": {
+          "maximum": 127,
+          "minimum": 1,
+          "title": "Velocity",
+          "type": "integer"
+        },
+        "hand": {
+          "enum": [
+            "L",
+            "R"
+          ],
+          "title": "Hand",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pitch",
+        "start",
+        "end",
+        "velocity",
+        "hand"
+      ],
+      "title": "Note",
+      "type": "object"
+    },
+    "SongWarning": {
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "SongWarning",
+      "type": "object"
+    },
+    "Tempo": {
+      "properties": {
+        "bpm": {
+          "exclusiveMinimum": 0,
+          "title": "Bpm",
+          "type": "number"
+        },
+        "beats": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Beats",
+          "type": "array"
+        },
+        "downbeats": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Downbeats",
+          "type": "array"
+        }
+      },
+      "required": [
+        "bpm",
+        "beats",
+        "downbeats"
+      ],
+      "title": "Tempo",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "durationSec": {
+      "title": "Durationsec",
+      "type": "number"
+    },
+    "sourceType": {
+      "enum": [
+        "vocal",
+        "instrumental",
+        "solo_piano"
+      ],
+      "title": "Sourcetype",
+      "type": "string"
+    },
+    "tempo": {
+      "$ref": "#/$defs/Tempo"
+    },
+    "timeSignature": {
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "integer"
+        }
+      ],
+      "title": "Timesignature",
+      "type": "array"
+    },
+    "key": {
+      "$ref": "#/$defs/Key"
+    },
+    "chords": {
+      "items": {
+        "$ref": "#/$defs/ChordSegment"
+      },
+      "title": "Chords",
+      "type": "array"
+    },
+    "arrangements": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Arrangement"
+      },
+      "propertyNames": {
+        "enum": [
+          "easy",
+          "medium",
+          "hard",
+          "original"
+        ]
+      },
+      "title": "Arrangements",
+      "type": "object"
+    },
+    "warnings": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SongWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "durationSec",
+    "sourceType",
+    "tempo",
+    "timeSignature",
+    "key",
+    "chords",
+    "arrangements"
+  ],
+  "title": "Song",
+  "type": "object"
+}
