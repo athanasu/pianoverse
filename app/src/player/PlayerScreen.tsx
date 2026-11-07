@@ -35,6 +35,8 @@ function Player({ song }: { song: Song }) {
   const playing = useClockPlaying(clock)
   const piano = usePiano(clock, notesRef)
   useWakeLock(playing)
+  const { silence } = piano
+  useEffect(() => silence(), [level, silence])
 
   const togglePlay = () => {
     void piano.ensure()

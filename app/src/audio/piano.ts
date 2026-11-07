@@ -40,6 +40,7 @@ export function salamanderUrls(): Record<string, string> {
 
 export interface SamplerLike {
   trigger(note: string, duration: number, time: number, velocity: number): void
+  releaseAll(): void
   now(): number
   dispose(): void
 }
@@ -63,7 +64,9 @@ export class PianoEngine {
     this.prev = this.clock.now()
     this.unsubscribe = this.clock.subscribe(() => {
       const now = this.clock.now()
-      if (now < this.prev || now - this.prev > DISCONTINUITY) this.prev = now
+      const jumped = now < this.prev || now - this.prev > DISCONTINUITY
+      if (jumped) this.prev = now
+      if (jumped || !this.clock.isPlaying()) this.sampler.releaseAll()
     })
     this.timer = setInterval(() => this.tick(), 25)
   }
@@ -74,6 +77,10 @@ export class PianoEngine {
     this.unsubscribe?.()
     this.unsubscribe = null
     this.sampler.dispose()
+  }
+
+  silence(): void {
+    this.sampler.releaseAll()
   }
 
   tick(): void {
@@ -124,6 +131,7 @@ export async function createSampler(): Promise<SamplerLike> {
   }
   return {
     trigger: (note, duration, time, velocity) => sampler.triggerAttackRelease(note, duration, time, velocity),
+    releaseAll: () => sampler.releaseAll(),
     now: () => Tone.immediate(),
     dispose: () => sampler.dispose(),
   }

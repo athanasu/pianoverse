@@ -76,6 +76,8 @@ export function usePiano(clock: PlaybackClock, notesRef: RefObject<Note[]>) {
     }
   }, [clock, notesRef])
 
+  const silence = useCallback(() => engine.current?.silence(), [])
+
   useEffect(
     () => () => {
       gen.current++
@@ -86,5 +88,5 @@ export function usePiano(clock: PlaybackClock, notesRef: RefObject<Note[]>) {
     [clock],
   )
 
-  return { status, ensure }
+  return { status, ensure, silence }
 }

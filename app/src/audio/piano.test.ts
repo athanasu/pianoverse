@@ -46,9 +46,10 @@ describe('PianoEngine', () => {
     let t = 0
     const clock = new TransportClock(10, () => t)
     const trigger = vi.fn()
-    const sampler: SamplerLike = { trigger, now: () => 50, dispose: vi.fn() }
+    const releaseAll = vi.fn()
+    const sampler: SamplerLike = { trigger, releaseAll, now: () => 50, dispose: vi.fn() }
     const engine = new PianoEngine(clock, sampler, () => notes)
-    return { clock, engine, trigger, sampler, tick: (dt: number) => { t += dt } }
+    return { clock, engine, trigger, releaseAll, sampler, tick: (dt: number) => { t += dt } }
   }
 
   it('triggers each note once as the clock crosses it', () => {
@@ -158,6 +159,47 @@ describe('PianoEngine', () => {
     tick(0.01)
     engine.tick()
     expect(trigger).not.toHaveBeenCalled()
+    engine.stop()
+  })
+
+  it('releases sounding notes on pause', () => {
+    const { clock, engine, releaseAll, tick } = setup()
+    engine.start()
+    clock.play()
+    tick(0.5)
+    engine.tick()
+    clock.pause()
+    expect(releaseAll).toHaveBeenCalled()
+    engine.stop()
+  })
+
+  it('releases sounding notes on a backward seek', () => {
+    const { clock, engine, releaseAll, tick } = setup()
+    engine.start()
+    clock.play()
+    tick(1.2)
+    engine.tick()
+    clock.seek(0.5)
+    expect(releaseAll).toHaveBeenCalled()
+    engine.stop()
+  })
+
+  it('keeps notes sounding across a setRate while playing', () => {
+    const { clock, engine, releaseAll, tick } = setup()
+    engine.start()
+    clock.play()
+    tick(0.5)
+    engine.tick()
+    clock.setRate(0.5)
+    expect(releaseAll).not.toHaveBeenCalled()
+    engine.stop()
+  })
+
+  it('silence() releases sounding notes', () => {
+    const { engine, releaseAll } = setup()
+    engine.start()
+    engine.silence()
+    expect(releaseAll).toHaveBeenCalledTimes(1)
     engine.stop()
   })
 })
