@@ -101,6 +101,10 @@ export class TransportClock implements PlaybackClock {
   setLoop(loop: Loop | null): void {
     this.sync(false)
     const valid = loop && loop.b - loop.a >= MIN_LOOP ? loop : null
+    if (sameLoop(valid, this.state.loop)) {
+      this.commit()
+      return
+    }
     let position = this.state.position
     if (valid && (position < valid.a || position >= valid.b)) position = valid.a
     this.state = { ...this.state, loop: valid, position }

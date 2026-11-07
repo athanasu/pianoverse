@@ -110,6 +110,17 @@ describe('TransportClock', () => {
     expect(seen[1]).toBe(false)
   })
 
+  it('setLoop with an equal loop changes nothing, even when outside it', () => {
+    const { clock } = make()
+    clock.setLoop({ a: 2, b: 4 })
+    clock.seek(9)
+    const fn = vi.fn()
+    clock.subscribe(fn)
+    clock.setLoop({ a: 2, b: 4 })
+    expect(clock.now()).toBe(9)
+    expect(fn).not.toHaveBeenCalled()
+  })
+
   it('does not notify on no-op calls', () => {
     const { clock, tick } = make()
     const fn = vi.fn()
