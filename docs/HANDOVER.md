@@ -20,16 +20,15 @@
 | 6. Capacitor (iOS/Android) | ⏳ |
 
 **Branches** (όλα στο GitHub, `athanasu/pianoverse`):
-- `feat/player` — **η πιο πρόσφατη δουλειά**· περιέχει και όλη τη μηχανή. Συνέχισε από εδώ.
-- `feat/engine-spike` — παλαιότερο σημείο (πριν τον player).
-- `main` — μόνο το αρχικό commit· τίποτα δεν έχει γίνει merge ακόμα.
+- `main` — **όλη η δουλειά** (μηχανή + player), μέσω του PR #1. Συνέχισε από εδώ, σε νέο branch για κάθε επόμενο βήμα (π.χ. `feat/backend`).
+- `feat/player`, `feat/engine-spike` — τα branches της υλοποίησης· έχουν γίνει merge.
 
 ## 3. Στήσιμο σε νέο Mac
 
 ```bash
 git clone git@github.com:athanasu/pianoverse.git
 cd pianoverse
-git checkout feat/player
+git checkout -b feat/backend   # από το main
 ```
 
 **Εργαλεία:**
