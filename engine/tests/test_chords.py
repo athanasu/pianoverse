@@ -1,5 +1,6 @@
 import warnings
 
+import librosa
 import numpy as np
 import pytest
 
@@ -53,12 +54,17 @@ def test_lone_note_is_flagged_uncertain():
     assert uncertain == [(segments[0].start, segments[0].end)]
 
 
-def test_estimate_tuning_is_safe_on_sparse_signals():
+def test_estimate_tuning_of_concert_pitch_is_zero():
     t = np.arange(int(12 * SR)) / SR
     sine = (0.5 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
     assert abs(estimate_tuning(sine, SR)) <= 0.05
-    sine[2 * SR:] = 0.0
+
+
+def test_estimate_tuning_suppresses_empty_frequency_warning():
+    quiet = np.full(12 * SR, 1e-9, dtype=np.float32)
+    with pytest.warns(UserWarning, match="empty frequency set"):
+        librosa.estimate_tuning(y=quiet, sr=SR)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        assert np.isfinite(estimate_tuning(sine, SR))
+        assert estimate_tuning(quiet, SR) == 0.0
     assert not [w for w in caught if "empty frequency set" in str(w.message)]
