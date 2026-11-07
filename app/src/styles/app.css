@@ -66,7 +66,8 @@ a { color: var(--left-hi); }
 .ctl[aria-pressed='true'] .dot.left { background: var(--left); }
 .ctl[aria-pressed='true'] .dot.right { background: var(--right); }
 
-.toast { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 2; max-width: calc(100% - 32px); text-align: center; padding: 8px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; }
+/* Top-right of the stage: clear of the chord card (left 30%, 196px wide) and of the keyboard. */
+.toast { position: absolute; right: 12px; top: 12px; z-index: 2; max-width: min(40%, calc(70% - 220px)); text-align: left; padding: 8px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; }
 .toast.warn { color: var(--right-hi); }
 .player-message { height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: var(--muted); padding: 24px; text-align: center; }
 .pill-link { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 16px 0 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--text); text-decoration: none; }
