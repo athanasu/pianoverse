@@ -1,3 +1,5 @@
+import contextlib
+import io
 import tempfile
 from pathlib import Path
 
@@ -8,7 +10,8 @@ def transcribe_polyphonic(path: Path) -> list[RawNote]:
     """Any instrument or voice → notes (Spotify Basic Pitch)."""
     from basic_pitch.inference import predict
 
-    _, _, note_events = predict(str(path))
+    with contextlib.redirect_stdout(io.StringIO()):   # CoreML backend prints per-window debug lines
+        _, _, note_events = predict(str(path))
     return [
         RawNote(int(pitch), float(start), float(end), max(1, min(127, int(round(amp * 127)))))
         for start, end, pitch, amp, _bends in note_events
