@@ -17,11 +17,12 @@ def transcribe_polyphonic(path: Path) -> list[RawNote]:
 
 def transcribe_piano(path: Path) -> list[RawNote]:
     """Solo piano → faithful notes (ByteDance high-resolution piano transcription)."""
-    from piano_transcription_inference import PianoTranscription, load_audio, sample_rate
+    from piano_transcription_inference import PianoTranscription, sample_rate
 
+    from .audio import load_mono
     from .separate import pick_device
 
-    audio, _ = load_audio(str(path), sr=sample_rate, mono=True)
+    audio, _ = load_mono(path, sr=sample_rate)
     transcriptor = PianoTranscription(device=pick_device(), checkpoint_path=None)
     with tempfile.TemporaryDirectory() as tmp:
         result = transcriptor.transcribe(audio, str(Path(tmp) / "out.mid"))
