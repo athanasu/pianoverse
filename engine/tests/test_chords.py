@@ -1,8 +1,10 @@
+import warnings
+
 import numpy as np
 import pytest
 
 from helpers import synth
-from pianoverse_engine.chords import _merge_ranges, recognize_chords
+from pianoverse_engine.chords import _merge_ranges, estimate_tuning, recognize_chords
 
 SR = 22050
 BEATS = [i * 0.5 for i in range(1, 16)]
@@ -49,3 +51,14 @@ def test_lone_note_is_flagged_uncertain():
     segments, uncertain = recognize_chords(y, SR, BEATS[:7], duration=4.0)
     assert len(segments) == 1
     assert uncertain == [(segments[0].start, segments[0].end)]
+
+
+def test_estimate_tuning_is_safe_on_sparse_signals():
+    t = np.arange(int(12 * SR)) / SR
+    sine = (0.5 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
+    assert abs(estimate_tuning(sine, SR)) <= 0.05
+    sine[2 * SR:] = 0.0
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert np.isfinite(estimate_tuning(sine, SR))
+    assert not [w for w in caught if "empty frequency set" in str(w.message)]

@@ -1,6 +1,7 @@
 import librosa
 import numpy as np
 
+from .chords import estimate_tuning
 from .models import Key
 from .theory import pc_name
 
@@ -11,7 +12,7 @@ MINOR_PROFILE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 
 
 
 def chroma_profile(y: np.ndarray, sr: int) -> np.ndarray:
-    return librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP).sum(axis=1)
+    return librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP, tuning=estimate_tuning(y, sr)).sum(axis=1)
 
 
 def estimate_key(profile: np.ndarray) -> Key:

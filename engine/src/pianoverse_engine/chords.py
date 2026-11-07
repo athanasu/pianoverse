@@ -1,3 +1,5 @@
+import warnings
+
 import librosa
 import numpy as np
 
@@ -23,6 +25,14 @@ def _build_templates() -> np.ndarray:
 _TEMPLATES = _build_templates()
 
 
+def estimate_tuning(y: np.ndarray, sr: int) -> float:
+    """Tuning offset in fractions of a bin; 0.0 when the signal has no pitched content."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Trying to estimate tuning from empty frequency set")
+        tuning = float(librosa.estimate_tuning(y=y, sr=sr))
+    return tuning if np.isfinite(tuning) else 0.0
+
+
 def _bounds(beats: list[float], duration: float) -> np.ndarray:
     inner = sorted(t for t in beats if 0 < t < duration)
     return np.array([0.0, *inner, duration])
@@ -33,7 +43,7 @@ def _segment_chroma(y: np.ndarray, sr: int, bounds: np.ndarray) -> np.ndarray:
     n = len(bounds) - 1
     if np.max(np.abs(y), initial=0.0) == 0:
         return np.zeros((n, 12))
-    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP)
+    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=HOP, tuning=estimate_tuning(y, sr))
     c_times = librosa.times_like(chroma, sr=sr, hop_length=HOP)
     rms = librosa.feature.rms(y=y, hop_length=HOP)[0]
     r_times = librosa.times_like(rms, sr=sr, hop_length=HOP)
