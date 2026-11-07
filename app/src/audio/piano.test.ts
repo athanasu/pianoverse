@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Note } from '../song/types'
 import { TransportClock } from '../player/transport'
-import { PianoEngine, crossedNotes, midiToToneName, salamanderUrls, type SamplerLike } from './piano'
+import { AUDIO_LATENCY, PianoEngine, crossedNotes, midiToToneName, salamanderUrls, type SamplerLike } from './piano'
 
 const n = (pitch: number, start: number, end = start + 0.5): Note => ({ pitch, start, end, velocity: 100, hand: 'R' })
 const notes = [n(60, 0), n(62, 1), n(64, 2), n(65, 3)]
@@ -82,6 +82,75 @@ describe('PianoEngine', () => {
     tick(0.1)
     engine.tick()
     expect(trigger.mock.calls[0][1]).toBeCloseTo(1)
+    engine.stop()
+  })
+
+  it('schedules at base + max(0, latency - lateness / rate)', () => {
+    const a = setup()
+    a.engine.start()
+    a.clock.play()
+    a.tick(0.1)
+    a.engine.tick()
+    expect(a.trigger.mock.calls[0][2]).toBeCloseTo(50 + Math.max(0, AUDIO_LATENCY - 0.1))
+    a.engine.stop()
+    const b = setup()
+    b.engine.start()
+    b.clock.play()
+    b.tick(0.02)
+    b.engine.tick()
+    expect(b.trigger.mock.calls[0][2]).toBeCloseTo(50 + AUDIO_LATENCY - 0.02)
+    b.engine.stop()
+    const c = setup()
+    c.engine.start()
+    c.clock.setRate(0.5)
+    c.clock.play()
+    c.tick(0.02) // 0.01 s of song time late 0.01 -> 0.02 wall
+    c.engine.tick()
+    expect(c.trigger.mock.calls[0][2]).toBeCloseTo(50 + AUDIO_LATENCY - 0.02 / 0.5 * 0.5)
+    c.engine.stop()
+  })
+
+  it('sounds notes once across an engine-level loop wrap', () => {
+    const { clock, engine, trigger, tick } = setup()
+    clock.setLoop({ a: 1, b: 3.5 })
+    clock.seek(3.0)
+    engine.start()
+    clock.play()
+    tick(0.4)
+    engine.tick()
+    tick(0.2) // 3.4 -> wraps to 1.1
+    engine.tick()
+    tick(0.2)
+    engine.tick()
+    const names = trigger.mock.calls.map((c) => c[0])
+    expect(names.filter((x) => x === 'F4')).toHaveLength(1)
+    expect(names.filter((x) => x === 'D4')).toHaveLength(1)
+    expect(names).toHaveLength(2)
+    engine.stop()
+  })
+
+  it('a setRate during playback does not drop a just-crossed note', () => {
+    const { clock, engine, trigger, tick } = setup()
+    engine.start()
+    clock.play()
+    tick(0.1)
+    clock.setRate(0.5)
+    engine.tick()
+    expect(trigger.mock.calls.map((c) => c[0])).toEqual(['C4'])
+    engine.stop()
+  })
+
+  it('a seek while playing resets the window', () => {
+    const { clock, engine, trigger, tick } = setup()
+    engine.start()
+    clock.play()
+    tick(0.5)
+    engine.tick()
+    trigger.mockClear()
+    clock.seek(2.5)
+    tick(0.01)
+    engine.tick()
+    expect(trigger).not.toHaveBeenCalled()
     engine.stop()
   })
 })

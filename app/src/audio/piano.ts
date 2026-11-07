@@ -4,7 +4,10 @@ import type { Loop } from '../player/types'
 
 export const AUDIO_LATENCY = 0.05
 // The canvas draws this far behind the clock so notes hit the keyboard when they sound.
+// Notes are scheduled at the context's currentTime + AUDIO_LATENCY (not Tone.now(), which adds Tone's lookAhead).
 export const VISUAL_OFFSET = AUDIO_LATENCY
+// A clock notification that moves time further than this (or backwards) is a seek/restart, not normal playback.
+const DISCONTINUITY = 0.5
 
 const SALAMANDER_BASE = 'https://tonejs.github.io/audio/salamander/'
 const TONE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -51,9 +54,11 @@ export class PianoEngine {
   }
 
   start(): void {
+    if (this.timer) return
     this.prev = this.clock.now()
     this.unsubscribe = this.clock.subscribe(() => {
-      this.prev = this.clock.now()
+      const now = this.clock.now()
+      if (now < this.prev || now - this.prev > DISCONTINUITY) this.prev = now
     })
     this.timer = setInterval(() => this.tick(), 25)
   }
@@ -88,7 +93,12 @@ let toneModule: ToneModule | null = null
 let tonePromise: Promise<ToneModule> | null = null
 
 export function preloadTone(): Promise<ToneModule> {
-  tonePromise ??= import('tone').then((m) => (toneModule = m))
+  tonePromise ??= import('tone')
+    .then((m) => (toneModule = m))
+    .catch((e: unknown) => {
+      tonePromise = null
+      throw e
+    })
   return tonePromise
 }
 
@@ -101,10 +111,15 @@ export async function createSampler(): Promise<SamplerLike> {
   const Tone = await preloadTone()
   await Tone.start()
   const sampler = new Tone.Sampler({ urls: salamanderUrls(), baseUrl: SALAMANDER_BASE, release: 1 }).toDestination()
-  await Tone.loaded()
+  try {
+    await Tone.loaded()
+  } catch (e) {
+    sampler.dispose()
+    throw e
+  }
   return {
     trigger: (note, duration, time, velocity) => sampler.triggerAttackRelease(note, duration, time, velocity),
-    now: () => Tone.now(),
+    now: () => Tone.immediate(),
     dispose: () => sampler.dispose(),
   }
 }
