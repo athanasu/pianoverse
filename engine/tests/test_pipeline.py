@@ -104,3 +104,12 @@ def test_sparse_melody_warns(tmp_path, song_file):
     fake.transcribe_polyphonic = lambda path: MELODY[:2]
     song = run_pipeline(song_file, tmp_path / "work", title="Test", engines=fake.engines())
     assert "melody_sparse" in {w.code for w in song.warnings}
+
+
+def test_overtone_ghosts_do_not_garble_the_melody(tmp_path, song_file):
+    fake = FakeEngines()
+    ghosts = [RawNote(n.pitch + 19, n.start, n.end, 40) for n in MELODY]
+    fake.transcribe_polyphonic = lambda path: MELODY + ghosts
+    song = run_pipeline(song_file, tmp_path / "work", title="Test", engines=fake.engines())
+    right = [n.pitch % 12 for n in song.arrangements["easy"].notes if n.hand == "R"]
+    assert right == [n.pitch % 12 for n in MELODY]

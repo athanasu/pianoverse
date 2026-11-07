@@ -10,7 +10,7 @@ from .chords import recognize_chords
 from .classify import classify, lead_stem
 from .errors import PipelineError
 from .key import chroma_profile, estimate_key
-from .melody import clean_notes, skyline
+from .melody import clean_notes, drop_ghost_notes, skyline
 from .models import Arrangement, RawNote, Song, SongWarning
 from .rhythm import tempo_from_beats, time_signature
 from .separate import Stems
@@ -83,9 +83,9 @@ def run_pipeline(
         full_piano = clean_notes(engines.transcribe_piano(norm))
         raw = full_piano
     elif source_type == "vocal":
-        raw = clean_notes(engines.transcribe_polyphonic(stem_paths["vocals"]))
+        raw = drop_ghost_notes(clean_notes(engines.transcribe_polyphonic(stem_paths["vocals"])))
     else:
-        raw = clean_notes(engines.transcribe_polyphonic(stem_paths[lead_stem(energies)]))
+        raw = drop_ghost_notes(clean_notes(engines.transcribe_polyphonic(stem_paths[lead_stem(energies)])))
     melody = skyline(raw)
     if not melody:
         raise PipelineError("no_melody", "Δεν μπόρεσα να βρω μελωδία στο κομμάτι.")
