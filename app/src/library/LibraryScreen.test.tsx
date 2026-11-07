@@ -19,7 +19,7 @@ it('lists songs with key, tempo, length and chords', async () => {
   const link = await screen.findByRole('link', { name: /Demo · Am F C G/ })
   expect(link).toHaveAttribute('href', '/song/demo')
   expect(screen.getByText('Λα ελάσσονα · 90 BPM · 0:22')).toBeInTheDocument()
-  expect(screen.getByText('Instrumental')).toBeInTheDocument()
+  expect(screen.getByText('Ορχηστρικό')).toBeInTheDocument()
   expect(screen.getByText('Am')).toBeInTheDocument()
 })
 
@@ -30,6 +30,7 @@ it('switches language and remembers it', async () => {
   await user.click(screen.getByRole('button', { name: 'EN' }))
   expect(screen.getByText('Your songs')).toBeInTheDocument()
   expect(screen.getByText('A minor · 90 BPM · 0:22')).toBeInTheDocument()
+  expect(screen.getByText('Instrumental')).toBeInTheDocument()
   expect(localStorage.getItem(LANG_KEY)).toBe('en')
 })
 

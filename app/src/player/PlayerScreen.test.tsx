@@ -26,7 +26,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const FAILED = 'Δεν φόρτωσε ο ήχος του πιάνου· οι νότες συνεχίζουν χωρίς ήχο.'
+const FAILED = 'Δεν φορτώθηκε ο ήχος του πιάνου· οι νότες συνεχίζουν χωρίς ήχο.'
 const LOADING = 'Φορτώνω τον ήχο του πιάνου…'
 const fakeSampler = (): piano.SamplerLike => ({ trigger: vi.fn(), releaseAll: vi.fn(), now: () => 0, dispose: vi.fn() })
 
@@ -55,7 +55,7 @@ it('loads a song and drives the controls', async () => {
 
   await user.click(screen.getByRole('button', { name: 'Αναπαραγωγή' }))
   expect(screen.getByRole('button', { name: 'Παύση' })).toBeInTheDocument()
-  expect(await screen.findByText('Δεν φόρτωσε ο ήχος του πιάνου· οι νότες συνεχίζουν χωρίς ήχο.')).toBeInTheDocument()
+  expect(await screen.findByText(FAILED)).toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: 'Επανάληψη A–B' }))
   expect(usePlayer.getState().loop).not.toBeNull()
@@ -65,6 +65,8 @@ it('shows the chord card and switches it off', async () => {
   const user = userEvent.setup()
   renderAt('/song/demo')
   expect(await screen.findByText('Λα ελάσσονα', { selector: '.cc-long' })).toBeInTheDocument()
+  expect(screen.getByText(/^δάχτυλα /, { selector: '.cc-fingers' })).toBeInTheDocument()
+  expect(document.querySelector('.chord-card')).not.toHaveAttribute('aria-live')
   await user.click(screen.getByRole('button', { name: 'Κάρτα συγχορδίας' }))
   expect(screen.queryByText('Λα ελάσσονα', { selector: '.cc-long' })).not.toBeInTheDocument()
 })
@@ -74,6 +76,13 @@ it('reports a missing song', async () => {
   renderAt('/song/nope')
   expect(await screen.findByText('Δεν βρέθηκε αυτό το κομμάτι.')).toBeInTheDocument()
   await waitFor(() => expect(screen.getByRole('link', { name: 'Πίσω στη βιβλιοθήκη' })).toBeInTheDocument())
+})
+
+it('reports a missing song in English', async () => {
+  useLang.setState({ lang: 'en' })
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 404 })))
+  renderAt('/song/nope')
+  expect(await screen.findByText("We couldn't find this song.")).toBeInTheDocument()
 })
 
 it('disposes a sampler that resolves after unmount and never starts the engine', async () => {

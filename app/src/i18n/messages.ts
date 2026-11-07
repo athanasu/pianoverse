@@ -7,7 +7,7 @@ const el = {
     empty: 'Δεν υπάρχουν ακόμα κομμάτια.',
     newSongSoon: 'Η ηχογράφηση έρχεται σύντομα',
     language: 'Γλώσσα',
-    sourceType: { vocal: 'Φωνή', instrumental: 'Instrumental', solo_piano: 'Πιάνο' },
+    sourceType: { vocal: 'Φωνή', instrumental: 'Ορχηστρικό', solo_piano: 'Πιάνο' },
   },
   player: {
     loading: 'Φορτώνω το κομμάτι…',
@@ -15,7 +15,7 @@ const el = {
     levels: { easy: 'Εύκολο', medium: 'Μέτριο', hard: 'Δύσκολο', original: 'Πρωτότυπο' },
     chordCard: 'Κάρτα συγχορδίας',
     now: 'Τώρα',
-    fingers: 'δάχτ.',
+    fingers: 'δάχτυλα',
     play: 'Αναπαραγωγή',
     pause: 'Παύση',
     loop: 'Επανάληψη A–B',
@@ -29,7 +29,7 @@ const el = {
     noteNamesShort: 'Ντο Ρε',
     rollLabel: 'Νότες που πέφτουν προς το πληκτρολόγιο',
     pianoLoading: 'Φορτώνω τον ήχο του πιάνου…',
-    pianoFailed: 'Δεν φόρτωσε ο ήχος του πιάνου· οι νότες συνεχίζουν χωρίς ήχο.',
+    pianoFailed: 'Δεν φορτώθηκε ο ήχος του πιάνου· οι νότες συνεχίζουν χωρίς ήχο.',
     rotate: 'Γύρισε το κινητό οριζόντια',
   },
   // One chip per engine warning code; unknown codes show the engine's own message.
@@ -84,7 +84,7 @@ const en: Messages = {
   },
   errors: {
     network: "Couldn't load the song. Check your connection.",
-    not_found: "This song wasn't found.",
+    not_found: "We couldn't find this song.",
     schema_mismatch: 'This song is from a newer version. Update the app.',
   },
 }

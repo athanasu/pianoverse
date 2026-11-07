@@ -29,7 +29,7 @@ export function ChordCard({ clock, chords }: { clock: PlaybackClock; chords: Cho
   if (!chord) return null
   const tones = chordTones(chord.root, chord.quality)
   return (
-    <aside className="chord-card" aria-live="polite">
+    <aside className="chord-card">
       <div className="cc-head">
         <span className="cc-symbol">{chord.symbol}</span>
         <span className="cc-long">{chordLongName(chord.root, chord.quality, lang)}</span>
