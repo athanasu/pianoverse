@@ -75,4 +75,34 @@ describe('drawFrame', () => {
     expect(blackX).not.toBe(whiteX)
     expect(xs.indexOf(whiteX)).toBeLessThan(xs.indexOf(blackX))
   })
+  it('lights white keys after all unlit white keys', () => {
+    const fills: unknown[] = []
+    const ctx: Record<string, unknown> = {
+      fillStyle: '',
+      clearRect: vi.fn(), fillRect: vi.fn(), beginPath: vi.fn(), roundRect: vi.fn(), fillText: vi.fn(),
+      fill: vi.fn(() => fills.push(ctx.fillStyle)),
+      createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+      globalAlpha: 1, shadowColor: '', shadowBlur: 0, font: '', textAlign: '', textBaseline: '',
+    }
+    drawFrame(ctx as unknown as CanvasRenderingContext2D, buildFrame(input({ notes: [notes[0]!], now: 0.5 })))
+    const lastUnlit = fills.lastIndexOf(THEME.keyWhite)
+    const lit = fills.indexOf(THEME.left, fills.indexOf(THEME.keyWhite))
+    expect(lit).toBeGreaterThan(lastUnlit)
+  })
+
+  it.each([
+    ['zero width', { width: 0, layout: layoutKeyboard(60, 71, 0) }],
+    ['height below keyboard height', { height: 40 }],
+  ])('does not throw with %s', (_, over) => {
+    const ctx: Record<string, unknown> = {
+      fillStyle: '',
+      clearRect: vi.fn(), fillRect: vi.fn(), beginPath: vi.fn(), fillText: vi.fn(), fill: vi.fn(),
+      roundRect: vi.fn((_x: number, _y: number, _w: number, _h: number, r: number | number[]) => {
+        if ([r].flat().some((v) => v < 0)) throw new RangeError('negative radius')
+      }),
+      createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+      globalAlpha: 1, shadowColor: '', shadowBlur: 0, font: '', textAlign: '', textBaseline: '',
+    }
+    expect(() => drawFrame(ctx as unknown as CanvasRenderingContext2D, buildFrame(input(over)))).not.toThrow()
+  })
 })

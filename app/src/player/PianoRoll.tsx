@@ -45,6 +45,10 @@ export function PianoRoll({ clock, tempo, notes, lo, hi, label, getView }: Props
     resize()
     let raf = 0
     const frame = () => {
+      if (size.w <= 0 || size.h <= 0) {
+        raf = requestAnimationFrame(frame)
+        return
+      }
       const view = viewRef.current()
       const keyboardHeight = Math.min(96, Math.max(64, size.h * 0.3))
       drawFrame(ctx, buildFrame({

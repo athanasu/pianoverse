@@ -82,6 +82,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: Frame): void {
   // White-key notes span the full key width, so black-key notes go last to stay on top.
   const ordered = [...f.rects.filter((r) => !r.black), ...f.rects.filter((r) => r.black)]
   for (const r of ordered) {
+    if (r.w <= 0 || r.h <= 0) continue
     const gradient = ctx.createLinearGradient(0, r.y, 0, r.y + r.h)
     gradient.addColorStop(0, r.hand === 'L' ? T.leftHi : T.rightHi)
     gradient.addColorStop(1, handColor(r.hand))
@@ -91,7 +92,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: Frame): void {
     ctx.shadowBlur = glow ? 16 : 0
     ctx.fillStyle = gradient
     ctx.beginPath()
-    ctx.roundRect(r.x, r.y, r.w, r.h, Math.min(6, r.w / 2, r.h / 2))
+    ctx.roundRect(r.x, r.y, r.w, r.h, Math.max(0, Math.min(6, r.w / 2, r.h / 2)))
     ctx.fill()
     if (r.label) {
       ctx.shadowBlur = 0
@@ -110,7 +111,8 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: Frame): void {
   ctx.fillRect(0, f.rollHeight - 2, f.width, 2)
 
   const top = f.rollHeight
-  for (const k of f.whites) {
+  // Unlit keys first, then lit ones, so a lit key's glow isn't painted over by its right-hand neighbour.
+  for (const k of [...f.whites.filter((w) => !f.lit.has(w.pitch)), ...f.whites.filter((w) => f.lit.has(w.pitch))]) {
     const hand = f.lit.get(k.pitch)
     ctx.shadowColor = hand ? handGlow(hand) : 'transparent'
     ctx.shadowBlur = hand ? 22 : 0
