@@ -11,13 +11,15 @@ import {
 } from './recorder'
 
 function fakes(overrides: Partial<RecorderDeps> = {}) {
-  const track = { stop: vi.fn() }
+  const track: { stop: () => void; onended?: ((ev: Event) => void) | null } = { stop: vi.fn() }
   const stream = { getTracks: () => [track] }
   let push: (chunk: Blob) => void = () => {}
+  let fail: () => void = () => {}
   const media: MediaRecorderLike = {
     mimeType: 'audio/webm;codecs=opus',
-    start: vi.fn((_timesliceMs: number, onData: (chunk: Blob) => void) => {
+    start: vi.fn((_timesliceMs: number, onData: (chunk: Blob) => void, onError?: () => void) => {
       push = onData
+      fail = onError ?? (() => {})
     }),
     stop: vi.fn(async () => push(new Blob(['tail']))),
   }
@@ -38,6 +40,7 @@ function fakes(overrides: Partial<RecorderDeps> = {}) {
     media,
     meter,
     push: (chunk: Blob) => push(chunk),
+    fail: () => fail(),
     advance: (ms: number) => {
       clock += ms
     },
@@ -88,8 +91,49 @@ describe('createRecorder', () => {
     await rec.start()
     f.advance(MAX_RECORDING_SEC * 1000)
     await vi.advanceTimersByTimeAsync(MAX_RECORDING_SEC * 1000)
-    expect(onAutoStop).toHaveBeenCalledWith(expect.objectContaining({ durationSec: 480 }))
+    expect(onAutoStop).toHaveBeenCalledWith(expect.objectContaining({ durationSec: MAX_RECORDING_SEC }))
     expect(f.track.stop).toHaveBeenCalled()
+  })
+
+  it('releases a stream that arrives after cancel() and never starts recording', async () => {
+    let grant: (stream: { getTracks: () => { stop: () => void }[] }) => void = () => {}
+    const f = fakes()
+    const stream = { getTracks: () => [f.track] }
+    const deps = { ...f.deps, getUserMedia: vi.fn(() => new Promise<typeof stream>((resolve) => { grant = resolve })) }
+    const rec = createRecorder(deps)
+    const started = rec.start()
+    rec.cancel()
+    grant(stream)
+    await expect(started).rejects.toThrow('cancelled')
+    expect(f.track.stop).toHaveBeenCalled()
+    expect(deps.createMediaRecorder).not.toHaveBeenCalled()
+  })
+
+  it('releases the microphone when the meter or the encoder fails to start', async () => {
+    const meterFails = fakes({ createLevelMeter: () => { throw new Error('no audio context') } })
+    await expect(createRecorder(meterFails.deps).start()).rejects.toMatchObject({ code: 'unsupported' })
+    expect(meterFails.track.stop).toHaveBeenCalled()
+
+    const encoderFails = fakes()
+    vi.mocked(encoderFails.media.start).mockImplementation(() => { throw new Error('boom') })
+    await expect(createRecorder(encoderFails.deps).start()).rejects.toMatchObject({ code: 'unsupported' })
+    expect(encoderFails.track.stop).toHaveBeenCalled()
+    expect(encoderFails.meter.close).toHaveBeenCalled()
+  })
+
+  it('finishes with what it captured when the track ends or the encoder errors', async () => {
+    for (const interrupt of ['track', 'encoder'] as const) {
+      const f = fakes()
+      const onAutoStop = vi.fn()
+      const rec = createRecorder(f.deps, { onAutoStop })
+      await rec.start()
+      f.push(new Blob(['abc']))
+      f.advance(15_000)
+      if (interrupt === 'track') f.track.onended?.(new Event('ended'))
+      else f.fail()
+      await vi.waitFor(() => expect(onAutoStop).toHaveBeenCalledWith(expect.objectContaining({ durationSec: 15 })))
+      expect(f.track.stop).toHaveBeenCalled()
+    }
   })
 
   it('cancel releases the microphone without a result', async () => {

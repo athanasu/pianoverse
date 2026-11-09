@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { RecorderError, type Recorder, type Recording } from './recorder'
+import { MAX_RECORDING_SEC, RecorderError, type Recorder, type Recording } from './recorder'
 import { useRecorder } from './useRecorder'
 
 function fakeRecorder(overrides: Partial<Recorder> = {}) {
@@ -66,4 +66,31 @@ it('releases the microphone on unmount', async () => {
   await act(() => result.current.start())
   unmount()
   expect(f.rec.cancel).toHaveBeenCalled()
+})
+
+it('stops from the tick once elapsed time passes the cap, even if timers were throttled', async () => {
+  vi.useFakeTimers()
+  const f = fakeRecorder()
+  const { result } = renderHook(() => useRecorder(() => f.rec))
+  await act(() => result.current.start())
+  f.setElapsed(MAX_RECORDING_SEC + 1)
+  await act(() => vi.advanceTimersByTimeAsync(100))
+  expect(f.rec.stop).toHaveBeenCalled()
+  expect(result.current.state).toEqual({ phase: 'done', recording: f.recording })
+})
+
+it('ignores a start that resolves after cancel and releases it', async () => {
+  let finishStart: () => void = () => {}
+  const f = fakeRecorder({ start: () => new Promise<void>((resolve) => { finishStart = resolve }) })
+  const { result } = renderHook(() => useRecorder(() => f.rec))
+  let started: Promise<void> = Promise.resolve()
+  act(() => { started = result.current.start() })
+  expect(result.current.state).toEqual({ phase: 'starting' })
+  act(() => result.current.cancel())
+  await act(async () => {
+    finishStart()
+    await started
+  })
+  expect(f.rec.cancel).toHaveBeenCalledTimes(2)
+  expect(result.current.state).toEqual({ phase: 'idle' })
 })

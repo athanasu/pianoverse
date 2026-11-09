@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { RecorderError, createRecorder, type Recorder, type RecorderErrorCode, type Recording } from './recorder'
+import { MAX_RECORDING_SEC, RecorderError, createRecorder, type Recorder, type RecorderErrorCode, type Recording } from './recorder'
 
 export const WAVE_BARS = 44
 const TICK_MS = 100
@@ -34,6 +34,11 @@ export function useRecorder(make: MakeRecorder = browserRecorder) {
     const id = setInterval(() => {
       const rec = recRef.current
       if (!rec) return
+      // Hidden tabs throttle timers, so the cap is also enforced from elapsed time.
+      if (rec.elapsedSec() >= MAX_RECORDING_SEC) {
+        void stopRef.current()
+        return
+      }
       const level = Math.min(1, rec.level() * LEVEL_GAIN)
       setState((s) =>
         s.phase === 'recording' ? { phase: 'recording', elapsedSec: rec.elapsedSec(), levels: [...s.levels, level].slice(-WAVE_BARS) } : s,
@@ -50,8 +55,13 @@ export function useRecorder(make: MakeRecorder = browserRecorder) {
     setState({ phase: 'starting' })
     try {
       await rec.start()
+      if (recRef.current !== rec) {
+        rec.cancel()
+        return
+      }
       setState({ phase: 'recording', elapsedSec: 0, levels: [] })
     } catch (e) {
+      if (recRef.current !== rec) return
       recRef.current = null
       setState({ phase: 'error', code: e instanceof RecorderError ? e.code : 'no_mic' })
     }
@@ -70,5 +80,16 @@ export function useRecorder(make: MakeRecorder = browserRecorder) {
     }
   }, [finish])
 
-  return { state, start, stop }
+  const stopRef = useRef(stop)
+  stopRef.current = stop
+
+  // Abandons a take or a pending permission prompt and returns to the start state.
+  const cancel = useCallback(() => {
+    recRef.current?.cancel()
+    recRef.current = null
+    lastRef.current = null
+    setState({ phase: 'idle' })
+  }, [])
+
+  return { state, start, stop, cancel }
 }

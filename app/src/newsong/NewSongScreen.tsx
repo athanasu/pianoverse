@@ -40,6 +40,7 @@ export function NewSong({ api, probe = probeDuration, makeRecorder }: NewSongPro
 
   const switchTab = (next: Tab) => {
     if (rec.phase === 'recording') void recorder.stop()
+    else if (rec.phase === 'starting') recorder.cancel()
     clearError()
     setTab(next)
   }
@@ -64,6 +65,7 @@ export function NewSong({ api, probe = probeDuration, makeRecorder }: NewSongPro
     submit.send({ audio: take.blob, filename: take.filename, title: defaultTitle({ kind: 'recording', at: take.startedAt }, lang), mode, source: 'recording' })
 
   const send = async () => {
+    if (sending) return
     if (tab === 'file') {
       if (picked) {
         const { file } = picked
@@ -71,7 +73,6 @@ export function NewSong({ api, probe = probeDuration, makeRecorder }: NewSongPro
       }
       return
     }
-    if (sending) return
     // "Done" while recording stops the take and sends it in one tap, as in the mockup.
     const take = rec.phase === 'done' ? rec.recording : await recorder.stop()
     if (take && take.durationSec >= MIN_RECORDING_SEC) await sendRecording(take)

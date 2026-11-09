@@ -1,5 +1,7 @@
-export const MAX_RECORDING_SEC = 8 * 60
-export const MIN_RECORDING_SEC = 10
+// The server rejects decoded audio under 10 s or over 480 s, and the browser's own timing is only
+// approximate, so the client keeps a margin on both sides.
+export const MAX_RECORDING_SEC = 478
+export const MIN_RECORDING_SEC = 10.5
 
 export type RecorderErrorCode = 'denied' | 'no_mic' | 'insecure' | 'unsupported'
 
@@ -14,12 +16,12 @@ export class RecorderError extends Error {
 }
 
 export interface StreamLike {
-  getTracks(): { stop(): void }[]
+  getTracks(): { stop(): void; onended?: ((ev: Event) => void) | null }[]
 }
 
 export interface MediaRecorderLike {
   readonly mimeType: string
-  start(timesliceMs: number, onData: (chunk: Blob) => void): void
+  start(timesliceMs: number, onData: (chunk: Blob) => void, onError?: () => void): void
   /** Resolves after the last chunk has been delivered. */
   stop(): Promise<void>
 }
@@ -88,7 +90,8 @@ function wrapMediaRecorder(media: MediaRecorder): MediaRecorderLike {
     get mimeType() {
       return media.mimeType
     },
-    start(timesliceMs, onData) {
+    start(timesliceMs, onData, onError) {
+      media.onerror = () => onError?.()
       media.ondataavailable = (e) => {
         if (e.data.size > 0) onData(e.data)
       }
@@ -110,6 +113,8 @@ function browserLevelMeter(stream: StreamLike): LevelMeter | null {
   const analyser = ctx.createAnalyser()
   analyser.fftSize = 1024
   ctx.createMediaStreamSource(stream as MediaStream).connect(analyser)
+  // Created after an await, so Safari may leave it suspended and the analyser silent.
+  void ctx.resume()
   const samples = new Uint8Array(analyser.fftSize)
   return {
     level() {
@@ -149,38 +154,56 @@ export function createRecorder(
   let startedAt: number | null = null
   let stoppedAt: number | null = null
   let autoStop: ReturnType<typeof setTimeout> | undefined
+  let cancelled = false
 
   const release = () => {
     clearTimeout(autoStop)
     meter?.close()
     meter = null
-    stream?.getTracks().forEach((track) => track.stop())
+    stream?.getTracks().forEach((track) => {
+      track.onended = null
+      track.stop()
+    })
     stream = null
     media = null
+  }
+
+  // Stops by itself at the limit, or when the microphone or encoder dies mid-take.
+  const finishByItself = () => {
+    stop().then((recording) => opts.onAutoStop?.(recording), () => undefined)
   }
 
   async function start(): Promise<void> {
     if (!deps.isSecureContext) throw new RecorderError('insecure')
     if (!deps.getUserMedia || !deps.createMediaRecorder) throw new RecorderError('unsupported')
+    cancelled = false
+    let opened: StreamLike
     try {
-      stream = await deps.getUserMedia({ audio: true })
+      opened = await deps.getUserMedia({ audio: true })
     } catch (e) {
       throw mediaError(e)
     }
+    stream = opened
+    // cancel() may have run while the permission prompt was open; nobody owns this stream any more.
+    if (cancelled) {
+      release()
+      throw new Error('cancelled')
+    }
     try {
-      media = deps.createMediaRecorder(stream, pickMimeType(deps.isTypeSupported))
+      media = deps.createMediaRecorder(opened, pickMimeType(deps.isTypeSupported))
+      chunks = []
+      meter = deps.createLevelMeter(opened)
+      media.start(1000, (chunk) => chunks.push(chunk), finishByItself)
     } catch {
       release()
       throw new RecorderError('unsupported')
     }
-    chunks = []
-    meter = deps.createLevelMeter(stream)
-    media.start(1000, (chunk) => chunks.push(chunk))
+    opened.getTracks().forEach((track) => {
+      track.onended = () => finishByItself()
+    })
     startedAt = deps.now()
     stoppedAt = null
-    autoStop = setTimeout(() => {
-      stop().then((recording) => opts.onAutoStop?.(recording), () => undefined)
-    }, MAX_RECORDING_SEC * 1000)
+    autoStop = setTimeout(finishByItself, MAX_RECORDING_SEC * 1000)
   }
 
   async function stop(): Promise<Recording> {
@@ -209,6 +232,7 @@ export function createRecorder(
     elapsedSec: () => (startedAt === null ? 0 : ((stoppedAt ?? deps.now()) - startedAt) / 1000),
     level: () => meter?.level() ?? 0,
     cancel() {
+      cancelled = true
       const current = media
       release()
       void current?.stop().catch(() => undefined)
