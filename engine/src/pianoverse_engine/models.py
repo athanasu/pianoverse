@@ -46,6 +46,14 @@ class Key(BaseModel):
     mode: Literal["major", "minor"]
 
 
+class Preview(BaseModel):
+    """What the pipeline knows after analysis, shown while the melody is still being transcribed."""
+    key: Key
+    bpm: float
+    timeSignature: tuple[int, int]
+    chords: list[str]
+
+
 class ChordSegment(BaseModel):
     start: float
     end: float

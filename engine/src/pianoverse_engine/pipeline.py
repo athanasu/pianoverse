@@ -10,13 +10,15 @@ from .classify import classify, lead_stem
 from .errors import PipelineError
 from .key import chroma_profile, estimate_key
 from .melody import clean_notes, drop_ghost_notes, skyline
-from .models import Arrangement, ChordSegment, RawNote, Song, SongWarning
+from .models import Arrangement, ChordSegment, Preview, RawNote, Song, SongWarning
 from .rhythm import tempo_from_beats, time_signature
 from .separate import HARMONIC_STEMS, Stems
 
 Mode = Literal["auto", "vocal", "instrumental", "solo_piano"]
 ProgressFn = Callable[[str, float], None]
+PreviewFn = Callable[[Preview], None]
 SPARSE_MELODY = 0.3
+PREVIEW_CHORDS = 4
 
 
 @dataclass
@@ -49,6 +51,17 @@ def _mmss(seconds: float) -> str:
     return f"{total // 60}:{total % 60:02d}"
 
 
+def preview_chords(chords: list[ChordSegment], limit: int = PREVIEW_CHORDS) -> list[str]:
+    """The first `limit` distinct chord symbols, skipping no-chord ("N")."""
+    out: list[str] = []
+    for chord in chords:
+        if chord.symbol != "N" and chord.symbol not in out:
+            out.append(chord.symbol)
+            if len(out) == limit:
+                break
+    return out
+
+
 def _warnings(melody: list[RawNote], duration: float,
               uncertain: list[tuple[float, float]]) -> list[SongWarning]:
     out: list[SongWarning] = []
@@ -65,6 +78,7 @@ def _warnings(melody: list[RawNote], duration: float,
 def run_pipeline(
     src: Path, workdir: Path, *, title: str, mode: Mode = "auto", song_id: str | None = None,
     engines: Engines | None = None, progress: ProgressFn = _no_progress,
+    on_preview: PreviewFn | None = None,
 ) -> Song:
     engines = engines or default_engines()
     workdir.mkdir(parents=True, exist_ok=True)
@@ -79,13 +93,18 @@ def run_pipeline(
     energies = stems.energies()
     source_type = classify(energies) if mode == "auto" else mode
 
-    progress("analyzing", 0.4)
+    progress("analyzing", 0.35)
     beats, downbeats = engines.track_beats(norm)
     if len(beats) < 4:
         raise PipelineError("no_beats", "No steady beat found in the song.")
+    tempo = tempo_from_beats(beats, downbeats)
+    meter = time_signature(beats, downbeats)
     chords, uncertain = engines.recognize_chords(stems, beats, duration)
     key = estimate_key(chroma_profile(stems.mix(HARMONIC_STEMS), stems.sr))
+    if on_preview is not None:
+        on_preview(Preview(key=key, bpm=tempo.bpm, timeSignature=meter, chords=preview_chords(chords)))
 
+    progress("melody", 0.6)
     full_piano: list[RawNote] = []
     if source_type == "solo_piano":
         full_piano = clean_notes(engines.transcribe_piano(norm))
@@ -98,7 +117,7 @@ def run_pipeline(
     if not melody:
         raise PipelineError("no_melody", "Could not find a melody in the song.")
 
-    progress("arranging", 0.75)
+    progress("arranging", 0.85)
     args = (melody, chords, beats, downbeats, duration)
     arrangements: dict[str, Arrangement] = {
         "easy": arrange_easy(*args), "medium": arrange_medium(*args), "hard": arrange_hard(*args),
@@ -111,8 +130,8 @@ def run_pipeline(
         title=title,
         durationSec=round(duration, 3),
         sourceType=source_type,
-        tempo=tempo_from_beats(beats, downbeats),
-        timeSignature=time_signature(beats, downbeats),
+        tempo=tempo,
+        timeSignature=meter,
         key=key,
         chords=chords,
         arrangements=arrangements,

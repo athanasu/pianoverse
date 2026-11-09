@@ -1,8 +1,10 @@
+import subprocess
+
 import numpy as np
 import pytest
 import soundfile as sf
 
-from pianoverse_engine.audio import load_mono, normalize
+from pianoverse_engine.audio import check_duration, load_mono, normalize, probe_duration
 from pianoverse_engine.errors import AudioError
 
 
@@ -51,3 +53,40 @@ def test_load_mono_resamples(tmp_path):
     assert sr == 22050
     assert y.ndim == 1
     assert len(y) == pytest.approx(2 * 22050, abs=2)
+
+
+def test_probe_duration_reads_the_header(tmp_path):
+    src = tmp_path / "in.wav"
+    sf.write(src, _sine(12, 22050), 22050)
+    assert probe_duration(src) == pytest.approx(12.0, abs=0.01)
+
+
+def test_probe_duration_decodes_streamed_webm_without_a_duration_header(tmp_path):
+    wav = tmp_path / "in.wav"
+    sf.write(wav, _sine(11, 48000), 48000)
+    # Writing to a pipe is how MediaRecorder-style webm ends up without a duration header.
+    webm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(wav), "-c:a", "libopus", "-f", "webm", "pipe:1"],
+                          capture_output=True, check=True).stdout
+    src = tmp_path / "rec.webm"
+    src.write_bytes(webm)
+    assert probe_duration(src) == pytest.approx(11.0, abs=0.1)
+
+
+def test_probe_duration_rejects_non_audio(tmp_path):
+    src = tmp_path / "in.mp3"
+    src.write_bytes(b"definitely not audio")
+    with pytest.raises(AudioError) as err:
+        probe_duration(src)
+    assert err.value.code == "unsupported_format"
+
+
+@pytest.mark.parametrize("duration,code", [(9.9, "too_short"), (480.1, "too_long")])
+def test_check_duration_rejects(duration, code):
+    with pytest.raises(AudioError) as err:
+        check_duration(duration)
+    assert err.value.code == code
+
+
+@pytest.mark.parametrize("duration", [10.0, 200.0, 480.0])
+def test_check_duration_accepts(duration):
+    check_duration(duration)

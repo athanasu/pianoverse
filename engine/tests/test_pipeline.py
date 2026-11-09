@@ -10,8 +10,10 @@ from helpers import synth
 from pianoverse_engine.chords import recognize_chords_from_stems
 from pianoverse_engine.chords_btc import ensure_weights, recognize_chords_btc
 from pianoverse_engine.errors import PipelineError
-from pianoverse_engine.models import ChordSegment, RawNote, Song
-from pianoverse_engine.pipeline import Engines, _mmss, _warnings, default_engines, run_pipeline
+from pianoverse_engine.models import ChordSegment, Preview, RawNote, Song
+from pianoverse_engine.pipeline import (
+    Engines, _mmss, _warnings, default_engines, preview_chords, run_pipeline,
+)
 from pianoverse_engine.separate import Stems
 
 SR = 44100
@@ -72,16 +74,33 @@ def song_file(tmp_path) -> Path:
 
 def test_vocal_song_end_to_end(tmp_path, song_file):
     fake = FakeEngines()
-    stages: list[str] = []
-    song = run_pipeline(song_file, tmp_path / "work", title="Test", engines=fake.engines(),
-                        progress=lambda stage, _: stages.append(stage))
+    song = run_pipeline(song_file, tmp_path / "work", title="Test", engines=fake.engines())
     assert song.sourceType == "vocal"
     assert set(song.arrangements) == {"easy", "medium", "hard"}
     assert [c.symbol for c in song.chords][:4] == ["C", "Am", "F", "G"]
     assert song.tempo.bpm == pytest.approx(120.0)
     assert fake.calls == [("separate", "input.wav"), ("polyphonic", "vocals.wav")]
-    assert stages == ["separating", "analyzing", "arranging", "done"]
     assert Song.model_validate_json(song.model_dump_json()) == song
+
+
+def test_progress_stages_and_preview_arrive_in_order(tmp_path, song_file):
+    events: list[tuple[str, float] | Preview] = []
+    song = run_pipeline(song_file, tmp_path / "work", title="Test", engines=FakeEngines().engines(),
+                        progress=lambda stage, fraction: events.append((stage, fraction)),
+                        on_preview=events.append)
+    previews = [e for e in events if isinstance(e, Preview)]
+    assert [e if isinstance(e, tuple) else "preview" for e in events] == [
+        ("separating", 0.05), ("analyzing", 0.35), "preview", ("melody", 0.6), ("arranging", 0.85), ("done", 1.0),
+    ]
+    assert previews == [Preview(key=song.key, bpm=song.tempo.bpm, timeSignature=song.timeSignature,
+                                chords=["C", "Am", "F", "G"])]
+
+
+def test_preview_chords_are_the_first_four_distinct_symbols_without_no_chord():
+    symbols = ["N", "C", "C", "Am", "N", "C", "F", "G", "Em"]
+    segments = [ChordSegment(start=i, end=i + 1, symbol=s, root=s[0], quality="maj") for i, s in enumerate(symbols)]
+    assert preview_chords(segments) == ["C", "Am", "F", "G"]
+    assert preview_chords(segments[:3]) == ["C"]
 
 
 def test_mode_override_solo_piano_adds_original(tmp_path, song_file):

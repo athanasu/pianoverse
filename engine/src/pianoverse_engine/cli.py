@@ -4,7 +4,14 @@ from pathlib import Path
 
 from .errors import EngineError
 from .export import write_outputs
+from .models import Preview
 from .pipeline import run_pipeline
+
+
+def _print_preview(preview: Preview) -> None:
+    beats, unit = preview.timeSignature
+    print(f"found: {preview.key.tonic} {preview.key.mode} · {preview.bpm:.0f} BPM · {beats}/{unit} · "
+          f"{' '.join(preview.chords)}", file=sys.stderr)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -22,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         song = run_pipeline(args.input, args.out / "work", title=args.title or args.input.stem,
-                            mode=args.mode, progress=progress)
+                            mode=args.mode, progress=progress, on_preview=_print_preview)
     except EngineError as err:
         print(f"Error ({err.code}): {err.message}", file=sys.stderr)
         return 1
