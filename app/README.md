@@ -23,6 +23,8 @@ Run the engine (`engine/README.md`), then copy its `song.json` to `public/songs/
 
 "+ New", recording, upload and the processing screen need the engine's server (`engine/README.md`). Without `VITE_API_URL` the app stays the offline demo above.
 
+The easiest way is `./dev.sh` from the repository root: it starts the server and this app together with a matching key and port. To do it by hand:
+
 ```bash
 cd engine && PIANOVERSE_API_KEY=choose-a-key uv run pianoverse-server   # http://127.0.0.1:8000
 cd app && cp .env.example .env.local                                      # set VITE_API_KEY=choose-a-key

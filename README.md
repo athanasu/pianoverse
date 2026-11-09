@@ -29,8 +29,8 @@ Pianoverse listens to any song (vocals, a band, or solo piano), writes a playabl
 | Arrangement engine (Python CLI) | ✅ |
 | Visual design | ✅ "Stage" direction ([spec §6](docs/superpowers/specs/2026-11-07-pianoverse-design.md#6-οπτικός-σχεδιασμός)) |
 | Web player on local songs | ✅ |
-| Backend (FastAPI on Modal + Supabase) | next |
-| Record / upload in the app | planned |
+| Backend (FastAPI on Modal + Supabase) | ✅ local · cloud next |
+| Record / upload in the app | ✅ local |
 | iOS & Android (Capacitor) | planned |
 
 Known gap: chords from phone/laptop-microphone recordings are still weak; clean audio files work well. See [docs/HANDOVER.md](docs/HANDOVER.md) for details and next steps.
@@ -60,7 +60,15 @@ The player is a React app: a canvas piano roll driven by its own transport clock
 
 Requirements: macOS or Linux, Node ≥ 22.22, [pnpm](https://pnpm.io), [uv](https://docs.astral.sh/uv/), ffmpeg and wget (`brew install ffmpeg wget uv pnpm`).
 
-**Try the player with the demo song:**
+**Run the whole app (server + web app) with one command:**
+
+```bash
+./dev.sh
+```
+
+It checks the tools, installs what's missing, creates an API key in `app/.env.local` the first time, starts the engine's server and the web app on a free port, and opens the browser. Ctrl+C stops both. Then tap **+ New** to record or upload a song.
+
+**Only the player with the demo song (no server):**
 
 ```bash
 cd app
