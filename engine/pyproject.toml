@@ -35,7 +35,7 @@ packages = ["src/pianoverse_engine"]
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
+    "httpx2>=2.16.0",
     "pytest>=8",
 ]
 

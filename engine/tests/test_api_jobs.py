@@ -208,3 +208,28 @@ def test_app_from_env_fails_jobs_left_running_by_a_previous_process(tmp_path):
 def test_app_from_env_refuses_the_modal_runner_for_now(tmp_path):
     with pytest.raises(ValueError, match="PIANOVERSE_RUNNER"):
         app_from_env({"PIANOVERSE_DATA_DIR": str(tmp_path), "PIANOVERSE_RUNNER": "modal"})
+
+
+def test_unknown_route_and_wrong_method_use_the_error_shape(make_server):
+    client = make_server().client
+    missing = client.get("/api/nope")
+    assert (missing.status_code, missing.json()["error"]["code"]) == (404, "not_found")
+    wrong = client.put("/api/health")
+    assert (wrong.status_code, wrong.json()["error"]["code"]) == (405, "method_not_allowed")
+    assert set(wrong.json()) == {"error"}
+
+
+def test_unhandled_error_is_a_json_500_and_fails_the_job(make_server):
+    server = make_server()
+    server.runner.stop()
+
+    def broken_put(*args, **kwargs):
+        raise RuntimeError("disk full")
+
+    server.blobs.put_file = broken_put
+    client = TestClient(server.client.app, raise_server_exceptions=False)
+    response = upload(client)
+    assert response.status_code == 500
+    assert response.json() == {"error": {"code": "internal", "message": "Something went wrong on the server."}}
+    [job] = server.store.list_failed_jobs()
+    assert job.error_code == "internal"

@@ -1,4 +1,5 @@
 import hmac
+import logging
 import os
 import re
 import tempfile
@@ -12,6 +13,7 @@ from fastapi import APIRouter, Depends, FastAPI, File, Form, Header, Request, Re
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ..audio import check_duration, probe_duration
 from ..errors import AudioError
@@ -24,6 +26,8 @@ from .worker import INTERNAL_MESSAGE
 MODES = ("auto", "vocal", "instrumental", "solo_piano")
 SOURCES = ("recording", "file")
 CHUNK = 1024 * 1024
+log = logging.getLogger(__name__)
+HTTP_CODES = {404: "not_found", 405: "method_not_allowed"}
 
 Lifespan = Callable[[FastAPI], Any]
 
@@ -86,6 +90,15 @@ def create_app(settings: Settings, store: Store, blobs: Blobs, runner: Runner, *
     @app.exception_handler(RequestValidationError)
     async def bad_request(request: Request, err: RequestValidationError) -> JSONResponse:
         return _error(400, "bad_request", "The request is missing fields or has invalid ones.")
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error(request: Request, err: StarletteHTTPException) -> JSONResponse:
+        return _error(err.status_code, HTTP_CODES.get(err.status_code, f"http_{err.status_code}"), str(err.detail))
+
+    @app.exception_handler(Exception)
+    async def unhandled(request: Request, err: Exception) -> JSONResponse:
+        log.error("unhandled error on %s %s", request.method, request.url.path, exc_info=err)
+        return _error(500, "internal", "Something went wrong on the server.")
 
     def require_key(authorization: Annotated[str | None, Header()] = None) -> None:
         if settings.api_key is None:
