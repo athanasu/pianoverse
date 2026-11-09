@@ -99,3 +99,14 @@ it('speaks English too', async () => {
   expect(screen.getByText('Separating the instruments')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Continue in the background' })).toBeInTheDocument()
 })
+
+it('stops polling on a 401 and shows the key message with a way back', async () => {
+  vi.useFakeTimers()
+  const getJob = vi.fn<Api['getJob']>().mockRejectedValue(new ApiError('unauthorized', 401))
+  renderAt(fakeApi({ getJob }))
+  await act(() => vi.advanceTimersByTimeAsync(0))
+  expect(screen.getByText('Ο server δεν δέχτηκε το κλειδί της εφαρμογής.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Πίσω στη βιβλιοθήκη' })).toBeInTheDocument()
+  await act(() => vi.advanceTimersByTimeAsync(10_000))
+  expect(getJob).toHaveBeenCalledTimes(1)
+})

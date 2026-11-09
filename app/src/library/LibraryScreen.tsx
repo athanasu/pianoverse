@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
-import { getApi } from '../api/client'
+import { ApiError, getApi } from '../api/client'
 import type { Job } from '../api/types'
 import { usePoll } from '../api/usePoll'
 import { useLang, useMessages } from '../i18n/lang'
@@ -81,7 +81,8 @@ export function LibraryScreen() {
     // Hidden at once; if the DELETE fails the card simply comes back on the next visit.
     void api?.dismissJob(id).catch(() => undefined)
   }
-  const serverDown = api !== null && state.error === 'network'
+  const unauthorized = state.error === 'unauthorized' || (jobs.error instanceof ApiError && jobs.error.code === 'unauthorized')
+  const serverDown = api !== null && state.error === 'network' && !unauthorized
 
   return (
     <div className="library">
@@ -101,7 +102,14 @@ export function LibraryScreen() {
           <button type="button" className="text-btn" onClick={retry}>{m.common.retry}</button>
         </div>
       )}
-      {state.error && !serverDown && <p className="lib-note">{m.errors[state.error]}</p>}
+      {unauthorized && (
+        <div className="server-down" role="alert">
+          <Alert />
+          <span>{m.apiErrors.unauthorized}</span>
+          <button type="button" className="text-btn" onClick={retry}>{m.common.retry}</button>
+        </div>
+      )}
+      {state.error && !serverDown && !unauthorized && <p className="lib-note">{m.errors[state.error]}</p>}
       {state.songs?.length === 0 && visible.length === 0 && <p className="lib-note">{m.library.empty}</p>}
       <ul className="song-list">
         {active.map((job) => <li key={job.id}><JobCard job={job} /></li>)}

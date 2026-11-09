@@ -77,6 +77,8 @@ describe('with the backend configured', () => {
   it('maps API failures to song load codes', async () => {
     vi.stubGlobal('fetch', apiFetch({ 'GET /api/songs/x': () => jsonResponse({ error: { code: 'not_found', message: 'Not found.' } }, 404) }))
     await expect(loadSong('x')).rejects.toMatchObject({ code: 'not_found' })
+    vi.stubGlobal('fetch', apiFetch({ 'GET /api/songs': () => jsonResponse({ error: { code: 'unauthorized', message: 'no' } }, 401) }))
+    await expect(loadIndex()).rejects.toMatchObject({ code: 'unauthorized' })
     vi.stubGlobal('fetch', apiFetch({}))
     await expect(loadIndex()).rejects.toMatchObject({ code: 'network' })
     vi.stubGlobal('fetch', apiFetch({ 'GET /api/songs': () => new Response('<html>', { status: 200 }) }))

@@ -102,6 +102,7 @@ const el = {
   errors: {
     network: 'Δεν μπόρεσα να φορτώσω το κομμάτι. Έλεγξε τη σύνδεση.',
     not_found: 'Δεν βρέθηκε αυτό το κομμάτι.',
+    unauthorized: 'Ο server δεν δέχτηκε το κλειδί της εφαρμογής.',
     schema_mismatch: 'Το κομμάτι είναι από νεότερη έκδοση. Ενημέρωσε την εφαρμογή.',
   },
   // Keyed by the API's stable error codes (spec §4, §6.3); see errorText() for the fallback order.
@@ -119,6 +120,10 @@ const el = {
     no_melody: 'Δεν μπόρεσα να βρω μελωδία στο κομμάτι.',
     interrupted: 'Η ανάλυση διακόπηκε πριν τελειώσει.',
     internal: 'Κάτι πήγε στραβά στον server.',
+    forbidden_origin: 'Ο server δεν δέχεται αιτήματα από αυτή τη διεύθυνση της εφαρμογής.',
+    ffmpeg_missing: 'Ο server δεν έχει εγκατεστημένο το ffmpeg. Εγκατάστησέ το και δοκίμασε ξανά.',
+    chord_model_download: 'Δεν μπόρεσα να κατεβάσω το μοντέλο συγχορδιών. Έλεγξε τη σύνδεση του server στο ίντερνετ.',
+    chord_model_corrupt: 'Το μοντέλο συγχορδιών κατέβηκε κατεστραμμένο. Δοκίμασε ξανά.',
     fallback: 'Κάτι πήγε στραβά. Δοκίμασε ξανά.',
   },
 }
@@ -225,6 +230,7 @@ const en: Messages = {
   errors: {
     network: "Couldn't load the song. Check your connection.",
     not_found: "We couldn't find this song.",
+    unauthorized: "The server didn't accept the app's key.",
     schema_mismatch: 'This song is from a newer version. Update the app.',
   },
   apiErrors: {
@@ -241,6 +247,10 @@ const en: Messages = {
     no_melody: "Couldn't find a melody in the song.",
     interrupted: 'The analysis stopped before it finished.',
     internal: 'Something went wrong on the server.',
+    forbidden_origin: "The server doesn't accept requests from this app address.",
+    ffmpeg_missing: 'The server needs ffmpeg installed. Install it and try again.',
+    chord_model_download: "Couldn't download the chord model. Check that the server has internet access.",
+    chord_model_corrupt: 'The chord model download was corrupt. Try again.',
     fallback: 'Something went wrong. Try again.',
   },
 }

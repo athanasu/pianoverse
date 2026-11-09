@@ -13,12 +13,13 @@ import { StepList } from './StepList'
 
 export const POLL_MS = 2000
 
+const isUnauthorized = (e: unknown) => e instanceof ApiError && e.code === 'unauthorized'
 const finished = (job: Job | null) => job === null || job.status === 'done' || job.status === 'failed'
 
 export function Processing({ api, jobId }: { api: Api; jobId: string }) {
   const m = useMessages()
   const navigate = useNavigate()
-  // A 404 resolves to null so polling stops; every other error keeps retrying.
+  // A 404 resolves to null and a 401 stops polling; every other error keeps retrying.
   const poll = usePoll(
     () =>
       api.getJob(jobId).catch((e: unknown) => {
@@ -26,13 +27,22 @@ export function Processing({ api, jobId }: { api: Api; jobId: string }) {
         throw e
       }),
     POLL_MS,
-    { stop: finished },
+    { stop: finished, stopOnError: isUnauthorized },
   )
   const job = poll.data
 
   useEffect(() => {
     if (job?.status === 'done' && job.songId) navigate(`/song/${encodeURIComponent(job.songId)}`, { replace: true })
   }, [job, navigate])
+
+  if (isUnauthorized(poll.error)) {
+    return (
+      <div className="player-message">
+        <p>{errorText(m, 'unauthorized')}</p>
+        <Link to="/" className="pill-link"><ChevronLeft />{m.common.back}</Link>
+      </div>
+    )
+  }
 
   if (job === null) {
     return (

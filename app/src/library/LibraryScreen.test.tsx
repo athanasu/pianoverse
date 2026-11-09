@@ -111,4 +111,15 @@ describe('with the backend', () => {
     expect(await screen.findByRole('link', { name: /Demo · Am F C G/ })).toBeInTheDocument()
     expect(screen.queryByText('Δεν βρίσκω τον server.')).not.toBeInTheDocument()
   })
+
+  it('says the key was rejected, not that the server is down, on a 401', async () => {
+    vi.stubGlobal('fetch', apiFetch({
+      'GET /api/songs': () => jsonResponse({ error: { code: 'unauthorized', message: 'no' } }, 401),
+      'GET /api/jobs?active=1': () => jsonResponse({ error: { code: 'unauthorized', message: 'no' } }, 401),
+    }))
+    render(<MemoryRouter><LibraryScreen /></MemoryRouter>)
+    expect(await screen.findByText('Ο server δεν δέχτηκε το κλειδί της εφαρμογής.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Δοκίμασε ξανά' })).toBeInTheDocument()
+    expect(screen.queryByText('Δεν βρίσκω τον server.')).not.toBeInTheDocument()
+  })
 })

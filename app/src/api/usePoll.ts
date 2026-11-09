@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 export interface PollOptions<T> {
   enabled?: boolean
   stop?: (value: T) => boolean
+  // An error that will not fix itself: polling ends instead of retrying.
+  stopOnError?: (error: unknown) => boolean
 }
 
 export interface Poll<T> {
@@ -16,8 +18,10 @@ export function usePoll<T>(fn: () => Promise<T>, intervalMs: number, opts: PollO
   // Latest callbacks without restarting the loop on every render.
   const fnRef = useRef(fn)
   const stopRef = useRef(opts.stop)
+  const stopOnErrorRef = useRef(opts.stopOnError)
   fnRef.current = fn
   stopRef.current = opts.stop
+  stopOnErrorRef.current = opts.stopOnError
 
   const [data, setData] = useState<T>()
   const [error, setError] = useState<unknown>()
@@ -39,6 +43,7 @@ export function usePoll<T>(fn: () => Promise<T>, intervalMs: number, opts: PollO
       } catch (e) {
         if (!alive) return
         setError(e)
+        again = !stopOnErrorRef.current?.(e)
       }
       if (again) timer = setTimeout(tick, intervalMs)
     }

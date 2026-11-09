@@ -1,7 +1,7 @@
 import { ApiError, getApi } from '../api/client'
 import type { Song, SongSummary } from './types'
 
-export type SongLoadErrorCode = 'network' | 'not_found' | 'schema_mismatch'
+export type SongLoadErrorCode = 'network' | 'unauthorized' | 'not_found' | 'schema_mismatch'
 
 export class SongLoadError extends Error {
   readonly code: SongLoadErrorCode
@@ -40,6 +40,7 @@ async function getJson(url: string, fetchImpl: FetchLike): Promise<unknown> {
     throw new SongLoadError('network')
   }
   if (res.status === 404) throw new SongLoadError('not_found')
+  if (res.status === 401) throw new SongLoadError('unauthorized')
   if (!res.ok) throw new SongLoadError('network')
   try {
     return await res.json()
@@ -53,6 +54,7 @@ async function fromApi<T>(call: () => Promise<T>): Promise<T> {
     return await call()
   } catch (e) {
     if (e instanceof ApiError && e.code === 'not_found') throw new SongLoadError('not_found')
+    if (e instanceof ApiError && e.code === 'unauthorized') throw new SongLoadError('unauthorized')
     if (e instanceof ApiError && e.code === 'bad_response') throw new SongLoadError('schema_mismatch')
     throw new SongLoadError('network')
   }
