@@ -1,6 +1,7 @@
+import { ApiError, getApi } from '../api/client'
 import type { Song, SongSummary } from './types'
 
-export type SongLoadErrorCode = 'network' | 'not_found' | 'schema_mismatch'
+export type SongLoadErrorCode = 'network' | 'unauthorized' | 'not_found' | 'schema_mismatch'
 
 export class SongLoadError extends Error {
   readonly code: SongLoadErrorCode
@@ -39,6 +40,7 @@ async function getJson(url: string, fetchImpl: FetchLike): Promise<unknown> {
     throw new SongLoadError('network')
   }
   if (res.status === 404) throw new SongLoadError('not_found')
+  if (res.status === 401) throw new SongLoadError('unauthorized')
   if (!res.ok) throw new SongLoadError('network')
   try {
     return await res.json()
@@ -47,12 +49,25 @@ async function getJson(url: string, fetchImpl: FetchLike): Promise<unknown> {
   }
 }
 
+async function fromApi<T>(call: () => Promise<T>): Promise<T> {
+  try {
+    return await call()
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'not_found') throw new SongLoadError('not_found')
+    if (e instanceof ApiError && e.code === 'unauthorized') throw new SongLoadError('unauthorized')
+    if (e instanceof ApiError && e.code === 'bad_response') throw new SongLoadError('schema_mismatch')
+    throw new SongLoadError('network')
+  }
+}
+
 export async function loadSong(id: string, fetchImpl: FetchLike = (u) => fetch(u)): Promise<Song> {
-  return parseSong(await getJson(songUrl(id), fetchImpl))
+  const api = getApi()
+  return parseSong(api ? await fromApi(() => api.getSong(id)) : await getJson(songUrl(id), fetchImpl))
 }
 
 export async function loadIndex(fetchImpl: FetchLike = (u) => fetch(u)): Promise<SongSummary[]> {
-  const data = await getJson('/songs/index.json', fetchImpl)
+  const api = getApi()
+  const data: unknown = api ? await fromApi(() => api.listSongs()) : await getJson('/songs/index.json', fetchImpl)
   if (!Array.isArray(data)) throw new SongLoadError('schema_mismatch')
   return data as SongSummary[]
 }

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { API_URL, apiFetch, jsonResponse } from '../test/apiFetch'
 import { SongLoadError, loadIndex, loadSong, parseSong, songUrl } from './loader'
 import { availableLevels } from './types'
 
@@ -52,5 +53,35 @@ describe('loadSong / loadIndex', () => {
     const songs = await loadIndex(respond([{ id: 'demo', title: 'Demo' }]))
     expect(songs[0].id).toBe('demo')
     await expect(loadIndex(respond({ not: 'a list' }))).rejects.toMatchObject({ code: 'schema_mismatch' })
+  })
+})
+
+describe('with the backend configured', () => {
+  beforeEach(() => vi.stubEnv('VITE_API_URL', API_URL))
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it('reads songs and the index from the API', async () => {
+    const fetchMock = apiFetch({
+      'GET /api/songs': () => jsonResponse([{ id: 'demo' }]),
+      'GET /api/songs/demo': () => jsonResponse(demo),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(loadSong('demo')).resolves.toMatchObject({ id: 'demo' })
+    await expect(loadIndex()).resolves.toEqual([{ id: 'demo' }])
+    expect(fetchMock).toHaveBeenCalledWith(`${API_URL}/api/songs/demo`, expect.anything())
+  })
+
+  it('maps API failures to song load codes', async () => {
+    vi.stubGlobal('fetch', apiFetch({ 'GET /api/songs/x': () => jsonResponse({ error: { code: 'not_found', message: 'Not found.' } }, 404) }))
+    await expect(loadSong('x')).rejects.toMatchObject({ code: 'not_found' })
+    vi.stubGlobal('fetch', apiFetch({ 'GET /api/songs': () => jsonResponse({ error: { code: 'unauthorized', message: 'no' } }, 401) }))
+    await expect(loadIndex()).rejects.toMatchObject({ code: 'unauthorized' })
+    vi.stubGlobal('fetch', apiFetch({}))
+    await expect(loadIndex()).rejects.toMatchObject({ code: 'network' })
+    vi.stubGlobal('fetch', apiFetch({ 'GET /api/songs': () => new Response('<html>', { status: 200 }) }))
+    await expect(loadIndex()).rejects.toMatchObject({ code: 'schema_mismatch' })
   })
 })

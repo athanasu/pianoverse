@@ -18,10 +18,15 @@ dependencies = [
   "basic-pitch>=0.4",
   "piano-transcription-inference>=0.0.6",
   "beat-this",
+  "sqlalchemy>=2",
+  "fastapi>=0.162.2",
+  "python-multipart>=0.0.33",
+  "uvicorn[standard]>=0.54.0",
 ]
 
 [project.scripts]
 pianoverse-engine = "pianoverse_engine.cli:main"
+pianoverse-server = "pianoverse_engine.server.main:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -31,7 +36,10 @@ build-backend = "hatchling.build"
 packages = ["src/pianoverse_engine"]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "httpx2>=2.16.0",
+    "pytest>=8",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

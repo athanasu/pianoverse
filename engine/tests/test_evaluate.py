@@ -47,7 +47,7 @@ def test_evaluation_survives_a_failing_song(tmp_path, monkeypatch):
     assert evaluate.main([str(samples), str(out)]) == 0
     report = (out / "report.md").read_text(encoding="utf-8")
     assert "| a | ✗ RuntimeError |" in report
-    assert "| b | vocal (αυτόματα) |" in report
+    assert "| b | vocal (auto) |" in report
     assert "RuntimeError: boom" in (out / "a" / "error.log").read_text(encoding="utf-8")
 
 
@@ -66,7 +66,7 @@ def test_mode_sidecar_forces_the_song_type(tmp_path, monkeypatch):
     monkeypatch.setattr(evaluate, "load_mono", lambda *a, **k: (np.zeros(100, dtype=np.float32), 22050))
     evaluate.main([str(samples), str(out)])
     assert received == ["solo_piano"]
-    assert "(ορίστηκε)" in (out / "report.md").read_text(encoding="utf-8")
+    assert "(set)" in (out / "report.md").read_text(encoding="utf-8")
 
 
 def test_invalid_mode_sidecar_becomes_an_error_row(tmp_path):

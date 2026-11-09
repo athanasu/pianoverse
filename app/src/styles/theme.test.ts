@@ -9,5 +9,7 @@ describe('applyTheme', () => {
     expect(el.style.getPropertyValue('--left-hi')).toBe(THEME.leftHi)
     expect(el.style.getPropertyValue('--surface-2')).toBe(THEME.surface2)
     expect(el.style.getPropertyValue('--font-display')).toBe(THEME.fontDisplay)
+    expect(el.style.getPropertyValue('--text-soft')).toBe(THEME.textSoft)
+    expect(el.style.getPropertyValue('--success')).toBe(THEME.success)
   })
 })
