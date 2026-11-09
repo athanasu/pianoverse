@@ -1,6 +1,6 @@
 # Pianoverse — Handover
 
-Τελευταία ενημέρωση: 2026-11-09. Για να συνεχιστεί η δουλειά από άλλο μηχάνημα ή από νέο Claude session.
+Τελευταία ενημέρωση: 2026-11-09 (μαζί με το `./dev.sh`). Για να συνεχιστεί η δουλειά από άλλο μηχάνημα ή από νέο Claude session.
 
 ## 1. Τι είναι
 
@@ -80,7 +80,15 @@ VITE_API_KEY=my-key
 
 ## 4. Πώς το τρέχεις
 
-Δύο terminals:
+**Με μία εντολή, από τη ρίζα του repo:**
+
+```bash
+./dev.sh
+```
+
+Ελέγχει τα εργαλεία, εγκαθιστά ό,τι λείπει (`uv sync`, `pnpm install`), την πρώτη φορά φτιάχνει μόνο του κλειδί στο `app/.env.local`, ξεκινά τον server (θύρα 8000) και το app σε ελεύθερη θύρα (5173 ή την επόμενη, με σωστό CORS), και ανοίγει τον browser. **Ctrl+C** σταματά και τα δύο. Επιλογές: `NO_OPEN=1 ./dev.sh` (χωρίς browser), `PIANOVERSE_PORT=8001 ./dev.sh` (άλλη θύρα server). Με το `./dev.sh` δεν χρειάζονται τα βήματα 4–5 της §3 ούτε τα παρακάτω.
+
+**Χειροκίνητα**, σε δύο terminals:
 
 ```bash
 cd ~/Code/athanasu/pianoverse/engine && PIANOVERSE_API_KEY=my-key uv run pianoverse-server
