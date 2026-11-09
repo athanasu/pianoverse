@@ -12,6 +12,7 @@ TARGET_SR = 44100
 MIN_SEC = 10
 MAX_SEC = 480
 SILENCE_RMS = 1e-3
+PROBE_TIMEOUT_SEC = 60
 
 
 def _require_ffmpeg() -> None:
@@ -23,11 +24,17 @@ def _unreadable() -> AudioError:
     return AudioError("unsupported_format", "Could not read this audio file.")
 
 
+def _probe_run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=PROBE_TIMEOUT_SEC)
+    except subprocess.TimeoutExpired:
+        raise _unreadable() from None
+
+
 def _decoded_duration(path: Path) -> float:
-    result = subprocess.run(
+    result = _probe_run(
         ["ffmpeg", "-v", "error", "-nostats", "-i", str(path), "-map", "0:a:0",
          "-f", "null", "-", "-progress", "pipe:1"],
-        capture_output=True, text=True,
     )
     times = [line.removeprefix("out_time_us=") for line in result.stdout.splitlines()
              if line.startswith("out_time_us=")]
@@ -39,10 +46,9 @@ def _decoded_duration(path: Path) -> float:
 def probe_duration(path: Path) -> float:
     """Duration of an audio file in seconds, read from its header when it has one."""
     _require_ffmpeg()
-    result = subprocess.run(
+    result = _probe_run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration",
          "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-        capture_output=True, text=True,
     )
     if result.returncode != 0:
         raise _unreadable()

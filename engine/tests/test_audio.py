@@ -72,6 +72,16 @@ def test_probe_duration_decodes_streamed_webm_without_a_duration_header(tmp_path
     assert probe_duration(src) == pytest.approx(11.0, abs=0.1)
 
 
+def test_probe_duration_times_out_as_unsupported(tmp_path, monkeypatch):
+    def hang(cmd, **kwargs):
+        raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
+
+    monkeypatch.setattr(subprocess, "run", hang)
+    with pytest.raises(AudioError) as err:
+        probe_duration(tmp_path / "in.mp3")
+    assert err.value.code == "unsupported_format"
+
+
 def test_probe_duration_rejects_non_audio(tmp_path):
     src = tmp_path / "in.mp3"
     src.write_bytes(b"definitely not audio")
