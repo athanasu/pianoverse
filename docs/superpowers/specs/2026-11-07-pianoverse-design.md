@@ -221,6 +221,9 @@ Polling ανά 2 δευτ. στο MVP.
 3. **Player με τοπικά JSON** — piano roll, πληκτρολόγιο, ήχος, controls, κάρτες συγχορδιών· πλήρες visual polish.
 4. **Backend** — FastAPI σε Modal, Supabase, jobs, βιβλιοθήκη.
 5. **Ηχογράφηση/Upload flow** στο app, end-to-end.
+
+   Τα βήματα 4 και 5 σχεδιάστηκαν μαζί: [2026-11-09-backend-design.md](2026-11-09-backend-design.md).
+
 6. **Capacitor** — iOS & Android builds, άδειες μικροφώνου, landscape, testing σε συσκευές.
 
 ## 10. Αποφάσεις spike (2026-11-07)
