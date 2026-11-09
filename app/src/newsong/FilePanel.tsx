@@ -8,7 +8,7 @@ export interface PickedFile {
   durationSec: number | null
 }
 
-export function FilePanel({ picked, onPick }: { picked: PickedFile | null; onPick: (file: File) => void }) {
+export function FilePanel({ picked, onPick, disabled = false }: { picked: PickedFile | null; onPick: (file: File) => void; disabled?: boolean }) {
   const m = useMessages()
   const inputId = useId()
   return (
@@ -18,6 +18,7 @@ export function FilePanel({ picked, onPick }: { picked: PickedFile | null; onPic
         className="sr-only"
         type="file"
         accept="audio/*"
+        disabled={disabled}
         onChange={(e) => {
           const file = e.target.files?.[0]
           if (file) onPick(file)

@@ -9,3 +9,4 @@ export const PlayIcon = () => <svg width={18} height={18} viewBox="0 0 24 24" fi
 export const PauseIcon = () => <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
 export const Close = () => <svg {...base}><path d="M6 6l12 12M18 6L6 18" /></svg>
 export const AudioFile = () => <svg {...base} width={26} height={26} strokeWidth={1.8}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /><circle cx="10" cy="16" r="2" /><path d="M12 16v-5l3 1" /></svg>
+export const MicOff = () => <svg {...base} width={26} height={26} strokeWidth={1.8}><path d="M9 9v2a3 3 0 0 0 5.1 2.1M15 9.3V5a3 3 0 0 0-5.9-.8" /><path d="M19 11a7 7 0 0 1-1.2 3.9M5 11a7 7 0 0 0 11.3 5.5M12 18v3" /><path d="M3 3l18 18" /></svg>
