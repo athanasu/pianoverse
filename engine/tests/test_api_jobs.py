@@ -228,8 +228,27 @@ def test_unhandled_error_is_a_json_500_and_fails_the_job(make_server):
 
     server.blobs.put_file = broken_put
     client = TestClient(server.client.app, raise_server_exceptions=False)
-    response = upload(client)
+    response = upload(client, headers={**AUTH, "Origin": "http://localhost:5173"})
     assert response.status_code == 500
     assert response.json() == {"error": {"code": "internal", "message": "Something went wrong on the server."}}
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
     [job] = server.store.list_failed_jobs()
     assert job.error_code == "internal"
+
+
+def test_without_an_api_key_foreign_origins_are_rejected(make_server):
+    server = make_server(api_key=None)
+    server.runner.stop()
+    foreign = upload(server.client, headers={"Origin": "http://evil.example"})
+    assert foreign.status_code == 403
+    assert foreign.json()["error"]["code"] == "forbidden_origin"
+    assert server.store.list_active_jobs() == []
+    assert upload(server.client, headers={"Origin": "http://localhost:5173"}).status_code == 202
+    assert upload(server.client, headers={}).status_code == 202
+
+
+def test_with_an_api_key_the_origin_check_is_left_to_the_key(make_server):
+    server = make_server()
+    server.runner.stop()
+    wrong = upload(server.client, headers={"Origin": "http://evil.example"})
+    assert wrong.status_code == 401

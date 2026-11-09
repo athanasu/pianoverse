@@ -52,7 +52,7 @@ Point the app at it with `VITE_API_URL=http://127.0.0.1:8000` and `VITE_API_KEY=
 | `PIANOVERSE_RUNNER` | `local` | `local` runs jobs one at a time on a thread in the server. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` | none | Cloud storage (later). |
 
-Uploads must be at most 50 MB and 10 seconds to 8 minutes long. Jobs that were running when the server stopped are marked `interrupted` on the next start, and so is any job without progress for 20 minutes. Errors come back as `{"error": {"code", "message"}}`; the app translates by `code`.
+Uploads must be at most 50 MB and 10 seconds to 8 minutes long. Jobs that were running when the server stopped are marked `interrupted` on the next start. On the cloud runner (`PIANOVERSE_RUNNER=modal`) a job without progress for 20 minutes is marked `interrupted` too. Errors come back as `{"error": {"code", "message"}}`; the app translates by `code`.
 
 ## Evaluate
 

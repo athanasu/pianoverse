@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import tempfile
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -89,8 +89,6 @@ def _save_upload(source: BinaryIO, dest: Path, limit: int) -> None:
 def create_app(settings: Settings, store: Store, blobs: Blobs, runner: Runner, *,
                probe: Callable[[Path], float] = probe_duration, lifespan: Lifespan | None = None) -> FastAPI:
     app = FastAPI(title="Pianoverse", lifespan=lifespan)
-    app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
-                       allow_methods=["GET", "POST", "DELETE"], allow_headers=["Authorization"])
 
     @app.exception_handler(ApiError)
     async def api_error(request: Request, err: ApiError) -> JSONResponse:
@@ -104,10 +102,22 @@ def create_app(settings: Settings, store: Store, blobs: Blobs, runner: Runner, *
     async def http_error(request: Request, err: StarletteHTTPException) -> JSONResponse:
         return _error(err.status_code, HTTP_CODES.get(err.status_code, f"http_{err.status_code}"), str(err.detail))
 
-    @app.exception_handler(Exception)
-    async def unhandled(request: Request, err: Exception) -> JSONResponse:
-        log.error("unhandled error on %s %s", request.method, request.url.path, exc_info=err)
-        return _error(500, "internal", "Something went wrong on the server.")
+    # Registered before CORSMiddleware so CORS wraps it: Starlette puts the last-registered middleware outermost,
+    # and a 500 served from ServerErrorMiddleware would carry no CORS headers.
+    @app.middleware("http")
+    async def guard(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        origin = request.headers.get("origin")
+        if settings.api_key is None and origin is not None and origin not in settings.cors_origins:
+            # Without a key, only the app's own origins may use the API; simple CORS requests skip preflight.
+            return _error(403, "forbidden_origin", "This origin is not allowed.")
+        try:
+            return await call_next(request)
+        except Exception as err:
+            log.error("unhandled error on %s %s", request.method, request.url.path, exc_info=err)
+            return _error(500, "internal", "Something went wrong on the server.")
+
+    app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
+                       allow_methods=["GET", "POST", "DELETE"], allow_headers=["Authorization"])
 
     def require_key(authorization: Annotated[str | None, Header()] = None) -> None:
         if settings.api_key is None:
