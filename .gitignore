@@ -5,3 +5,4 @@ engine/.venv/
 engine/samples/
 engine/out/
 .superpowers/
+engine/data/

@@ -18,6 +18,7 @@ dependencies = [
   "basic-pitch>=0.4",
   "piano-transcription-inference>=0.0.6",
   "beat-this",
+  "sqlalchemy>=2",
 ]
 
 [project.scripts]
