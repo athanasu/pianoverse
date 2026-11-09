@@ -16,6 +16,7 @@
 | Αρχιτεκτονική | FastAPI **μέσα στο `engine/`** (ίδιο Python project), με τρία βύσματα: Store, Blobs, Runner |
 | UI | Όπως τα εγκεκριμένα mockups «Νέο τραγούδι» και «Ανάλυση», χωρίς push ειδοποιήσεις και χωρίς εκτίμηση χρόνου |
 | Web deploy | Cloudflare Pages (HTTPS → ηχογράφηση και από browser κινητού) |
+| Γλώσσα κώδικα | **Όλος ο κώδικας στα αγγλικά** (ονόματα, comments, logs, μηνύματα engine, CLI). Ελληνικά μόνο στα κείμενα UI του app (`messages.ts`) |
 
 ## 2. Αρχιτεκτονική
 
@@ -49,7 +50,7 @@ app (React)  ──HTTPS, Bearer key──►  FastAPI  (engine/src/pianoverse_e
 
 ## 4. API
 
-Όλα κάτω από `/api`. Auth: `Authorization: Bearer <PIANOVERSE_API_KEY>` (εκτός `GET /api/health`). Σφάλματα: `{ "error": { "code", "message" } }`, με `message` στα ελληνικά ως fallback — το app μεταφράζει από το `code`.
+Όλα κάτω από `/api`. Auth: `Authorization: Bearer <PIANOVERSE_API_KEY>` (εκτός `GET /api/health`). Σφάλματα: `{ "error": { "code", "message" } }`, με `message` στα αγγλικά ως fallback — το app μεταφράζει από το `code`.
 
 | Endpoint | Απάντηση |
 |---|---|
