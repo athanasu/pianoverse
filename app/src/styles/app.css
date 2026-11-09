@@ -102,7 +102,7 @@ a { color: var(--left-hi); }
 .song-chords { display: flex; gap: 4px; }
 .chip { height: 20px; padding: 0 7px; border-radius: 6px; background: var(--chip); font-family: var(--font-display); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; }
 .song-tag { font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--muted); }
-.new-song-soon { position: fixed; background: var(--surface); left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(520px, calc(100% - 40px)); height: 58px; border-radius: 18px; border: 1px dashed var(--line); color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 10px; font-family: var(--font-display); font-weight: 600; }
+.new-song-soon { position: fixed; z-index: 2; background: var(--surface); left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(520px, calc(100% - 40px)); height: 58px; border-radius: 18px; border: 1px dashed var(--line); color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 10px; font-family: var(--font-display); font-weight: 600; }
 
 /* ---------- library: backend ---------- */
 .text-btn { height: 44px; min-width: 44px; padding: 0 14px; flex-shrink: 0; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 13px; font-weight: 600; }
@@ -118,7 +118,7 @@ a { color: var(--left-hi); }
 .job-error { font-size: 13px; line-height: 1.35; color: var(--text-soft); }
 .server-down { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 8px 8px 8px 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line-soft); color: var(--right-hi); font-size: 14px; }
 .server-down span { flex: 1; color: var(--text-soft); }
-.new-song-btn { position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(520px, calc(100% - 40px)); height: 58px; border-radius: 18px; background: var(--right); color: var(--on-accent); text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font-display); font-size: 17px; font-weight: 700; box-shadow: 0 10px 30px color-mix(in srgb, var(--right) 30%, transparent); }
+.new-song-btn { position: fixed; z-index: 2; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(520px, calc(100% - 40px)); height: 58px; border-radius: 18px; background: var(--right); color: var(--on-accent); text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font-display); font-size: 17px; font-weight: 700; box-shadow: 0 10px 30px color-mix(in srgb, var(--right) 30%, transparent); }
 @media (prefers-reduced-motion: reduce) {
   .job-thumb span { animation: none; }
   .job-bar span { transition: none; }
