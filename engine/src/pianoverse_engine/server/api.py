@@ -20,11 +20,12 @@ from ..errors import AudioError
 from .blobs import Blobs, LocalBlobs
 from .config import Settings
 from .runner import LocalRunner, Runner
-from .store import JobRecord, Store, utcnow
-from .worker import INTERNAL_MESSAGE
+from .store import JobRecord, SongRecord, Store, utcnow
+from .worker import INTERNAL_MESSAGE, song_key
 
 MODES = ("auto", "vocal", "instrumental", "solo_piano")
 SOURCES = ("recording", "file")
+LEVELS = ("easy", "medium", "hard", "original")
 CHUNK = 1024 * 1024
 log = logging.getLogger(__name__)
 HTTP_CODES = {404: "not_found", 405: "method_not_allowed"}
@@ -60,6 +61,14 @@ def job_json(job: JobRecord) -> dict[str, Any]:
     if job.error_code:
         out["error"] = {"code": job.error_code, "message": job.error_message or ""}
     return out
+
+
+def song_summary_json(song: SongRecord) -> dict[str, Any]:
+    return {
+        "id": song.id, "title": song.title, "key": {"tonic": song.key_tonic, "mode": song.key_mode},
+        "bpm": song.bpm, "durationSec": song.duration_sec, "sourceType": song.source_type,
+        "chords": song.chords,
+    }
 
 
 def _audio_suffix(filename: str | None) -> str:
@@ -179,6 +188,29 @@ def create_app(settings: Settings, store: Store, blobs: Blobs, runner: Runner, *
             raise ApiError(409, "not_failed", "Only failed jobs can be dismissed.")
         store.dismiss_job(job_id)
         return Response(status_code=204)
+
+    def song_blob(song_id: str, name: str) -> bytes:
+        if store.get_song(song_id) is None:
+            raise ApiError(404, "not_found", "No such song.")
+        try:
+            return blobs.get_bytes(song_key(song_id, name))
+        except KeyError:
+            raise ApiError(404, "not_found", "No such song file.") from None
+
+    @api.get("/songs")
+    def list_songs() -> list[dict[str, Any]]:
+        return [song_summary_json(song) for song in store.list_songs()]
+
+    @api.get("/songs/{song_id}")
+    def get_song(song_id: str) -> Response:
+        return Response(song_blob(song_id, "song.json"), media_type="application/json")
+
+    @api.get("/songs/{song_id}/midi")
+    def get_midi(song_id: str, level: str = "easy") -> Response:
+        if level not in LEVELS:
+            raise ApiError(404, "not_found", "No such level.")
+        return Response(song_blob(song_id, f"{level}.mid"), media_type="audio/midi",
+                        headers={"Content-Disposition": f'attachment; filename="{song_id}-{level}.mid"'})
 
     app.include_router(api)
     return app
