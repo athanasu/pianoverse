@@ -1,11 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
+import { getApi } from '../api/client'
+import type { Job } from '../api/types'
+import { usePoll } from '../api/usePoll'
 import { useLang, useMessages } from '../i18n/lang'
 import { keyName } from '../i18n/music'
 import { SongLoadError, loadIndex, type SongLoadErrorCode } from '../song/loader'
 import type { SongSummary } from '../song/types'
 import { formatTime } from '../player/timeline'
-import { Plus } from '../ui/icons'
+import { Alert, Plus } from '../ui/icons'
+import { FailedJobCard, JobCard } from './JobCards'
+
+export const JOBS_POLL_MS = 2000
 
 function Thumb({ seed }: { seed: string }) {
   let h = 7
@@ -43,8 +49,18 @@ export function LibraryScreen() {
   const m = useMessages()
   const lang = useLang((s) => s.lang)
   const setLang = useLang((s) => s.setLang)
+  const api = useMemo(() => getApi(), [])
+  const jobs = usePoll(() => (api ? api.listJobs() : Promise.resolve<Job[]>([])), JOBS_POLL_MS, { enabled: api !== null })
+  const [dismissed, setDismissed] = useState<string[]>([])
+  const [reload, setReload] = useState(0)
   const [state, setState] = useState<{ songs?: SongSummary[]; error?: SongLoadErrorCode }>({})
 
+  const visible = (jobs.data ?? []).filter((job) => !dismissed.includes(job.id))
+  const active = visible.filter((job) => job.status !== 'failed' && job.status !== 'done')
+  const failed = visible.filter((job) => job.status === 'failed')
+  const activeKey = active.map((job) => job.id).join(',')
+
+  // Reloads whenever the set of running jobs changes, so a finished job turns into a song card.
   useEffect(() => {
     let alive = true
     loadIndex().then(
@@ -54,7 +70,18 @@ export function LibraryScreen() {
     return () => {
       alive = false
     }
-  }, [])
+  }, [activeKey, reload])
+
+  const retry = () => {
+    setReload((n) => n + 1)
+    jobs.refresh()
+  }
+  const dismiss = (id: string) => {
+    setDismissed((ids) => [...ids, id])
+    // Hidden at once; if the DELETE fails the card simply comes back on the next visit.
+    void api?.dismissJob(id).catch(() => undefined)
+  }
+  const serverDown = api !== null && state.error === 'network'
 
   return (
     <div className="library">
@@ -62,17 +89,30 @@ export function LibraryScreen() {
         <span className="logo" aria-hidden="true"><span className="l1" /><span className="l2" /><span className="l3" /></span>
         <h1 className="wordmark">Pianoverse</h1>
         <div className="segmented small" role="group" aria-label={m.library.language}>
-          <button type="button" aria-pressed={lang === 'el'} onClick={() => setLang('el')}>ΕΛ</button>
-          <button type="button" aria-pressed={lang === 'en'} onClick={() => setLang('en')}>EN</button>
+          <button type="button" aria-pressed={lang === 'el'} onClick={() => setLang('el')}>{m.common.langLabels.el}</button>
+          <button type="button" aria-pressed={lang === 'en'} onClick={() => setLang('en')}>{m.common.langLabels.en}</button>
         </div>
       </header>
       <h2 className="section-label">{m.library.yourSongs}</h2>
-      {state.error && <p className="lib-note">{m.errors[state.error]}</p>}
-      {state.songs?.length === 0 && <p className="lib-note">{m.library.empty}</p>}
+      {serverDown && (
+        <div className="server-down" role="alert">
+          <Alert />
+          <span>{m.library.serverDown}</span>
+          <button type="button" className="text-btn" onClick={retry}>{m.common.retry}</button>
+        </div>
+      )}
+      {state.error && !serverDown && <p className="lib-note">{m.errors[state.error]}</p>}
+      {state.songs?.length === 0 && visible.length === 0 && <p className="lib-note">{m.library.empty}</p>}
       <ul className="song-list">
+        {active.map((job) => <li key={job.id}><JobCard job={job} /></li>)}
+        {failed.map((job) => <li key={job.id}><FailedJobCard job={job} onDismiss={() => dismiss(job.id)} /></li>)}
         {state.songs?.map((song) => <li key={song.id}><SongCard song={song} /></li>)}
       </ul>
-      <div className="new-song-soon"><Plus />{m.library.newSongSoon}</div>
+      {api ? (
+        <Link to="/new" className="new-song-btn"><Plus />{m.library.newSong}</Link>
+      ) : (
+        <div className="new-song-soon"><Plus />{m.library.newSongSoon}</div>
+      )}
     </div>
   )
 }

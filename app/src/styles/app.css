@@ -102,3 +102,23 @@ a { color: var(--left-hi); }
 .chip { height: 20px; padding: 0 7px; border-radius: 6px; background: var(--chip); font-family: var(--font-display); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; }
 .song-tag { font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--muted); }
 .new-song-soon { position: fixed; background: var(--surface); left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(520px, calc(100% - 40px)); height: 58px; border-radius: 18px; border: 1px dashed var(--line); color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 10px; font-family: var(--font-display); font-weight: 600; }
+
+/* ---------- library: backend ---------- */
+.text-btn { height: 44px; min-width: 44px; padding: 0 14px; flex-shrink: 0; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 13px; font-weight: 600; }
+.job-thumb { width: 56px; height: 56px; flex-shrink: 0; border-radius: 12px; background: var(--roll); display: flex; align-items: flex-end; justify-content: center; gap: 5px; padding-bottom: 12px; }
+.job-thumb span { width: 7px; border-radius: 2px; background: var(--right); transform-origin: bottom; animation: job-pulse 1.2s ease-in-out infinite; }
+.job-thumb span:nth-child(1) { height: 14px; background: var(--left); }
+.job-thumb span:nth-child(2) { height: 24px; animation-delay: 0.2s; }
+.job-thumb span:nth-child(3) { height: 18px; background: var(--left); animation-delay: 0.4s; }
+.job-thumb.failed { align-items: center; padding: 0; color: var(--right-hi); }
+@keyframes job-pulse { 50% { transform: scaleY(0.55); opacity: 0.6; } }
+.job-bar { display: block; height: 4px; margin-top: 4px; border-radius: 999px; background: var(--track); overflow: hidden; }
+.job-bar span { display: block; height: 100%; border-radius: 999px; background: var(--right); transition: width 0.6s ease; }
+.job-error { font-size: 13px; line-height: 1.35; color: var(--text-soft); }
+.server-down { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 8px 8px 8px 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line-soft); color: var(--right-hi); font-size: 14px; }
+.server-down span { flex: 1; color: var(--text-soft); }
+.new-song-btn { position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(520px, calc(100% - 40px)); height: 58px; border-radius: 18px; background: var(--right); color: var(--on-accent); text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font-display); font-size: 17px; font-weight: 700; box-shadow: 0 10px 30px color-mix(in srgb, var(--right) 30%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .job-thumb span { animation: none; }
+  .job-bar span { transition: none; }
+}
