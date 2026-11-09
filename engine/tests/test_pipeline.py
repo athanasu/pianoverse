@@ -131,7 +131,7 @@ def test_mmss_formats_minutes_and_two_digit_seconds():
 def test_uncertain_chords_warning_names_the_time_range():
     warnings = _warnings(MELODY, 12.0, [(80.0, 105.0)])
     uncertain = [w for w in warnings if w.code == "chords_uncertain"]
-    assert [w.message for w in uncertain] == ["Αβέβαιες συγχορδίες στο 1:20–1:45."]
+    assert [w.message for w in uncertain] == ["Uncertain chords at 1:20–1:45."]
     assert (uncertain[0].start, uncertain[0].end) == (80.0, 105.0)
 
 

@@ -55,9 +55,9 @@ def _warnings(melody: list[RawNote], duration: float,
     coverage = sum(n.end - n.start for n in melody) / duration
     if coverage < SPARSE_MELODY:
         out.append(SongWarning(code="melody_sparse",
-                               message=f"Η μελωδία εντοπίστηκε μόνο στο {coverage:.0%} του κομματιού."))
+                               message=f"Melody detected in only {coverage:.0%} of the song."))
     for start, end in uncertain:
-        out.append(SongWarning(code="chords_uncertain", message=f"Αβέβαιες συγχορδίες στο {_mmss(start)}–{_mmss(end)}.",
+        out.append(SongWarning(code="chords_uncertain", message=f"Uncertain chords at {_mmss(start)}–{_mmss(end)}.",
                                start=round(start, 2), end=round(end, 2)))
     return out
 
@@ -82,7 +82,7 @@ def run_pipeline(
     progress("analyzing", 0.4)
     beats, downbeats = engines.track_beats(norm)
     if len(beats) < 4:
-        raise PipelineError("no_beats", "Δεν βρέθηκε σταθερός ρυθμός στο κομμάτι.")
+        raise PipelineError("no_beats", "No steady beat found in the song.")
     chords, uncertain = engines.recognize_chords(stems, beats, duration)
     key = estimate_key(chroma_profile(stems.mix(HARMONIC_STEMS), stems.sr))
 
@@ -96,7 +96,7 @@ def run_pipeline(
         raw = drop_ghost_notes(clean_notes(engines.transcribe_polyphonic(stem_paths[lead_stem(energies)])))
     melody = skyline(raw)
     if not melody:
-        raise PipelineError("no_melody", "Δεν μπόρεσα να βρω μελωδία στο κομμάτι.")
+        raise PipelineError("no_melody", "Could not find a melody in the song.")
 
     progress("arranging", 0.75)
     args = (melody, chords, beats, downbeats, duration)

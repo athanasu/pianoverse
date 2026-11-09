@@ -62,7 +62,7 @@ def _forced_mode(sidecar: Path) -> str | None:
         return None
     mode = sidecar.read_text(encoding="utf-8").strip()
     if mode not in FORCED_MODES:
-        raise EngineError("bad_mode", "Μη έγκυρος τύπος στο αρχείο .mode.")
+        raise EngineError("bad_mode", "Invalid type in the .mode file.")
     return mode
 
 
@@ -76,7 +76,7 @@ def _evaluate_song(path: Path, samples: Path, dest: Path, started: float) -> str
     lab = samples / f"{path.stem}.chords.lab"
     score = f"{chord_score(song, lab):.0%}" if lab.exists() else "—"
     return (
-        f"| {path.stem} | {song.sourceType} ({'ορίστηκε' if mode else 'αυτόματα'}) | {song.key.tonic} {song.key.mode} | "
+        f"| {path.stem} | {song.sourceType} ({'set' if mode else 'auto'}) | {song.key.tonic} {song.key.mode} | "
         f"{song.tempo.bpm:.0f} | {len(song.chords)} | {score} | {len(song.warnings)} | "
         f"{time.time() - started:.0f}s |"
     )
@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
             rows.append(f"| {path.stem} | ✗ {type(err).__name__} | | | | | | |")
     report = (
         "# Engine evaluation\n\n"
-        "| Τραγούδι | Τύπος | Τονικότητα | BPM | Συγχορδίες | Chord acc. (majmin) | Warnings | Χρόνος |\n"
+        "| Song | Type | Key | BPM | Chords | Chord acc. (majmin) | Warnings | Time |\n"
         "|---|---|---|---|---|---|---|---|\n" + "\n".join(rows) + "\n"
     )
     (out / "report.md").write_text(report, encoding="utf-8")

@@ -107,7 +107,7 @@ def _download(url: str, dest: Path) -> None:
     except OSError as exc:   # URLError, HTTPError and TimeoutError are all OSErrors
         part.unlink(missing_ok=True)
         raise PipelineError("chord_model_download",
-                            "Δεν μπόρεσα να κατεβάσω το μοντέλο συγχορδιών. Έλεγξε τη σύνδεση στο διαδίκτυο.") from exc
+                            "Could not download the chord model. Check the internet connection.") from exc
     part.replace(dest)
 
 
@@ -121,7 +121,7 @@ def ensure_weights(cache_dir: Path = CACHE_DIR) -> bytes:
     if hashlib.sha256(data).hexdigest() != WEIGHTS_SHA256:
         path.unlink()
         raise PipelineError("chord_model_corrupt",
-                            "Το μοντέλο συγχορδιών κατέβηκε αλλοιωμένο. Δοκίμασε ξανά.")
+                            "The downloaded chord model is corrupt. Try again.")
     return data
 
 

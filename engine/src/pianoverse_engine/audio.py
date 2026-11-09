@@ -17,22 +17,22 @@ SILENCE_RMS = 1e-3
 def normalize(src: Path, dst: Path) -> float:
     """Convert any audio file to 44.1 kHz stereo wav; return its duration."""
     if shutil.which("ffmpeg") is None:
-        raise AudioError("ffmpeg_missing", "Λείπει το ffmpeg από το σύστημα.")
+        raise AudioError("ffmpeg_missing", "ffmpeg is not installed on this system.")
     result = subprocess.run(
         ["ffmpeg", "-y", "-v", "error", "-i", str(src),
          "-ac", "2", "-ar", str(TARGET_SR), "-c:a", "pcm_s16le", str(dst)],
         capture_output=True, text=True,
     )
     if result.returncode != 0:
-        raise AudioError("unsupported_format", "Δεν μπόρεσα να διαβάσω αυτό το αρχείο ήχου.")
+        raise AudioError("unsupported_format", "Could not read this audio file.")
     data, sr = sf.read(dst, always_2d=True, dtype="float32")
     duration = len(data) / sr
     if duration < MIN_SEC:
-        raise AudioError("too_short", "Η ηχογράφηση είναι πολύ μικρή (χρειάζονται τουλάχιστον 10 δευτερόλεπτα).")
+        raise AudioError("too_short", "The recording is too short (at least 10 seconds are needed).")
     if duration > MAX_SEC:
-        raise AudioError("too_long", "Το κομμάτι είναι πολύ μεγάλο (μέγιστο 8 λεπτά).")
+        raise AudioError("too_long", "The song is too long (8 minutes at most).")
     if float(np.sqrt(np.mean(data ** 2))) < SILENCE_RMS:
-        raise AudioError("silent", "Δεν ακούγεται τίποτα στην ηχογράφηση.")
+        raise AudioError("silent", "Nothing is audible in the recording.")
     return duration
 
 

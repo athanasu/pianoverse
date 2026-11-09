@@ -1,5 +1,5 @@
 class EngineError(Exception):
-    """Failure with a stable code and a Greek, user-facing message."""
+    """Failure with a stable code (the contract clients translate) and an English fallback message."""
 
     def __init__(self, code: str, message: str):
         super().__init__(f"{code}: {message}")

@@ -14,7 +14,7 @@ def test_cli_writes_outputs(tmp_path, monkeypatch):
 
 def test_cli_reports_engine_errors(tmp_path, monkeypatch, capsys):
     def boom(*a, **k):
-        raise AudioError("too_short", "Η ηχογράφηση είναι πολύ μικρή.")
+        raise AudioError("too_short", "The recording is too short.")
     monkeypatch.setattr(cli, "run_pipeline", boom)
     src = tmp_path / "in.mp3"
     src.write_bytes(b"x")
