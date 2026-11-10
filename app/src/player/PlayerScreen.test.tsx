@@ -19,6 +19,7 @@ const demo = readFileSync(resolve(import.meta.dirname, '../../public/songs/demo/
 
 beforeEach(() => {
   useLang.setState({ lang: 'el' })
+  usePlayer.setState({ speed: 1 })
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(demo, { status: 200 })))
 })
 afterEach(() => {
@@ -50,8 +51,6 @@ it('loads a song and drives the controls', async () => {
   expect(usePlayer.getState().level).toBe('easy')
   expect(screen.getByRole('button', { name: 'Εύκολο' })).toHaveAttribute('aria-pressed', 'true')
 
-  await user.click(screen.getByRole('button', { name: /^Ταχύτητα/ }))
-  expect(screen.getByRole('button', { name: 'Ταχύτητα 25%' })).toHaveTextContent('25%')
 
   await user.click(screen.getByRole('button', { name: 'Αναπαραγωγή' }))
   expect(screen.getByRole('button', { name: 'Παύση' })).toBeInTheDocument()
@@ -59,6 +58,56 @@ it('loads a song and drives the controls', async () => {
 
   await user.click(screen.getByRole('button', { name: 'Επανάληψη A–B' }))
   expect(usePlayer.getState().loop).not.toBeNull()
+})
+
+it('sets the speed with presets, fine steps and the slider', async () => {
+  const user = userEvent.setup()
+  renderAt('/song/demo')
+  await screen.findByText('Demo · Am F C G')
+  expect(screen.queryByRole('group', { name: 'Ταχύτητα' })).not.toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Ταχύτητα 100%' }))
+  expect(screen.getByRole('group', { name: 'Ταχύτητα' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '100%' })).toHaveAttribute('aria-pressed', 'true')
+
+  await user.click(screen.getByRole('button', { name: '125%' }))
+  expect(usePlayer.getState().speed).toBe(1.25)
+  expect(screen.getByRole('button', { name: 'Ταχύτητα 125%' })).toHaveTextContent('125%')
+
+  await user.click(screen.getByRole('button', { name: 'Πιο αργά' }))
+  await user.click(screen.getByRole('button', { name: 'Πιο αργά' }))
+  expect(usePlayer.getState().speed).toBe(1.15)
+  await user.click(screen.getByRole('button', { name: 'Πιο γρήγορα' }))
+  expect(screen.getByRole('button', { name: 'Ταχύτητα 120%' })).toBeInTheDocument()
+
+  fireEvent.change(screen.getByRole('slider', { name: 'Ταχύτητα' }), { target: { value: '200' } })
+  expect(usePlayer.getState().speed).toBe(2)
+  expect(screen.getByRole('button', { name: 'Πιο γρήγορα' })).toBeDisabled()
+
+  fireEvent.change(screen.getByRole('slider', { name: 'Ταχύτητα' }), { target: { value: '60' } })
+  expect(screen.getByRole('slider', { name: 'Ταχύτητα' })).toHaveAttribute('aria-valuetext', '60%')
+})
+
+it('closes the speed panel on Escape or a press outside it, keeping the speed', async () => {
+  const user = userEvent.setup()
+  renderAt('/song/demo')
+  await screen.findByText('Demo · Am F C G')
+  const open = () => user.click(screen.getByRole('button', { name: /^Ταχύτητα/ }))
+
+  await open()
+  await user.click(screen.getByRole('button', { name: '75%' }))
+  await user.keyboard('{Escape}')
+  expect(screen.queryByRole('group', { name: 'Ταχύτητα' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Ταχύτητα 75%' })).toHaveFocus()
+
+  await open()
+  await user.click(screen.getByRole('img', { name: 'Νότες που πέφτουν προς το πληκτρολόγιο' }))
+  expect(screen.queryByRole('group', { name: 'Ταχύτητα' })).not.toBeInTheDocument()
+
+  await open()
+  await open()
+  expect(screen.queryByRole('group', { name: 'Ταχύτητα' })).not.toBeInTheDocument()
+  expect(usePlayer.getState().speed).toBe(0.75)
 })
 
 it('shows the chord card and switches it off', async () => {

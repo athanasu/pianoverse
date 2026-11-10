@@ -2,7 +2,18 @@ import { create } from 'zustand'
 import type { Hand, Level } from '../song/types'
 import type { Loop } from './types'
 
-export const SPEEDS = [0.25, 0.5, 0.75, 1]
+// Speed is chosen in whole percent of the original tempo, so steps never drift off round values.
+export const SPEED_MIN = 25
+export const SPEED_MAX = 200
+export const SPEED_STEP = 5
+export const SPEED_PRESETS = [25, 50, 75, 100, 125, 150]
+
+export const speedPercent = (speed: number) => Math.round(speed * 100)
+
+function snapSpeed(percent: number): number {
+  const snapped = Math.round(percent / SPEED_STEP) * SPEED_STEP
+  return Math.min(SPEED_MAX, Math.max(SPEED_MIN, snapped)) / 100
+}
 
 interface PlayerState {
   level: Level
@@ -14,7 +25,8 @@ interface PlayerState {
   reset: (levels: Level[]) => void
   setLevel: (level: Level) => void
   toggleHand: (hand: Hand) => void
-  cycleSpeed: () => void
+  setSpeedPercent: (percent: number) => void
+  stepSpeed: (direction: 1 | -1) => void
   setLoop: (loop: Loop | null) => void
   toggleNames: () => void
   toggleCard: () => void
@@ -30,7 +42,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   reset: (levels) => set({ level: levels.includes('medium') ? 'medium' : (levels[0] ?? 'medium'), loop: null }),
   setLevel: (level) => set({ level }),
   toggleHand: (hand) => set({ hands: { ...get().hands, [hand]: !get().hands[hand] } }),
-  cycleSpeed: () => set({ speed: SPEEDS[(SPEEDS.indexOf(get().speed) + 1) % SPEEDS.length] }),
+  setSpeedPercent: (percent) => set({ speed: snapSpeed(percent) }),
+  stepSpeed: (direction) => set({ speed: snapSpeed(speedPercent(get().speed) + direction * SPEED_STEP) }),
   setLoop: (loop) => set({ loop }),
   toggleNames: () => set({ names: !get().names }),
   toggleCard: () => set({ card: !get().card }),
