@@ -42,6 +42,13 @@ curl -H "Authorization: Bearer dev-key" -F audio=@song.mp3 -F title="My song" \
 
 Point the app at it with `VITE_API_URL=http://127.0.0.1:8000` and `VITE_API_KEY=dev-key` in `app/.env.local`.
 
+Songs keep the arrangement they were made with. After the engine improves, rebuild the ones already in the library from their original audio (titles and ids stay):
+
+```bash
+uv run pianoverse-reanalyze                 # every song
+uv run pianoverse-reanalyze 24a25c36f184    # only these ids
+```
+
 | Variable | Default | Meaning |
 |---|---|---|
 | `PIANOVERSE_API_KEY` | none | Bearer key for every `/api` route except `/api/health`. Without it auth is off, which is allowed only on `127.0.0.1`. |

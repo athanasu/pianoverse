@@ -147,8 +147,10 @@ class Store:
         with self._engine.begin() as conn:
             conn.execute(delete(jobs).where((jobs.c.id == job_id) & (jobs.c.status == "failed")))
 
-    def create_song(self, rec: SongRecord) -> None:
+    def save_song(self, rec: SongRecord) -> None:
+        """Insert the song, replacing any earlier record with the same id."""
         with self._engine.begin() as conn:
+            conn.execute(delete(songs).where(songs.c.id == rec.id))
             conn.execute(insert(songs).values(**vars(rec)))
 
     def list_songs(self) -> list[SongRecord]:
