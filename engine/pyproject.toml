@@ -27,6 +27,7 @@ dependencies = [
 [project.scripts]
 pianoverse-engine = "pianoverse_engine.cli:main"
 pianoverse-server = "pianoverse_engine.server.main:main"
+pianoverse-reanalyze = "pianoverse_engine.server.reanalyze:main"
 
 [build-system]
 requires = ["hatchling"]

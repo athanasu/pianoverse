@@ -7,10 +7,10 @@ import pytest
 from fake_pipeline import PREVIEW, STAGES, fake_run
 from helpers import make_song
 from pianoverse_engine.errors import PipelineError
-from pianoverse_engine.models import Song
+from pianoverse_engine.models import Arrangement, Note, Song, Tempo
 from pianoverse_engine.server.blobs import LocalBlobs
 from pianoverse_engine.server.store import Store
-from pianoverse_engine.server.worker import process_job
+from pianoverse_engine.server.worker import process_job, reprocess_song
 
 
 @pytest.fixture
@@ -121,3 +121,60 @@ def test_workdir_is_removed_afterwards(store, blobs, job, tmp_path):
     root.mkdir()
     process_job(job.id, store, blobs, run=fake_run, workdir_root=root)
     assert list(root.iterdir()) == []
+
+
+def test_reprocess_replaces_the_arrangements_and_keeps_the_song(store, blobs, job, tmp_path):
+    process_job(job.id, store, blobs, run=fake_run)
+    before = store.get_song(job.id)
+    seen = {}
+
+    def run(src, workdir, **kwargs):
+        seen.update(kwargs, audio=src.read_bytes(), suffix=src.suffix)
+        return make_song(id=kwargs["song_id"], title=kwargs["title"], sourceType="instrumental",
+                         tempo=Tempo(bpm=90, beats=[0.5, 1.0], downbeats=[0.5]),
+                         arrangements={"easy": Arrangement(notes=[
+                             Note(pitch=60, start=0, end=1, velocity=80, hand="R")])})
+
+    song = reprocess_song(job.id, store, blobs, run=run, workdir_root=tmp_path)
+    assert (seen["audio"], seen["suffix"]) == (b"recorded-audio", ".webm")
+    assert (seen["title"], seen["mode"], seen["song_id"]) == ("My song", "vocal", job.id)
+    assert Song.model_validate_json(blobs.get_bytes(f"songs/{job.id}/song.json")) == song
+    midi_path = tmp_path / "easy.mid"
+    midi_path.write_bytes(blobs.get_bytes(f"songs/{job.id}/easy.mid"))
+    assert [len(i.notes) for i in pretty_midi.PrettyMIDI(str(midi_path)).instruments] == [1]
+    after = store.get_song(job.id)
+    assert (after.title, after.created_at) == (before.title, before.created_at)
+    assert (after.source_type, after.bpm) == ("instrumental", 90.0)
+    assert len(store.list_songs()) == 1
+    assert store.get_job(job.id).attempts == 1   # the job row is history, not touched
+
+
+def test_reprocess_reports_progress(store, blobs, job):
+    process_job(job.id, store, blobs, run=fake_run)
+    stages = []
+
+    def run(src, workdir, *, progress, **kwargs):
+        for stage, fraction in STAGES:
+            progress(stage, fraction)
+        progress("done", 1.0)
+        return make_song(id=kwargs["song_id"])
+
+    reprocess_song(job.id, store, blobs, run=run, progress=lambda stage, fraction: stages.append(stage))
+    assert stages == [stage for stage, _ in STAGES] + ["done"]
+
+
+def test_reprocess_failure_leaves_the_old_song(store, blobs, job):
+    process_job(job.id, store, blobs, run=fake_run)
+    old = blobs.get_bytes(f"songs/{job.id}/song.json")
+
+    def run(*args, **kwargs):
+        raise PipelineError("no_melody", "Could not find a melody in the song.")
+
+    with pytest.raises(PipelineError):
+        reprocess_song(job.id, store, blobs, run=run)
+    assert blobs.get_bytes(f"songs/{job.id}/song.json") == old
+
+
+def test_reprocess_unknown_song_is_a_key_error(store, blobs, job):
+    with pytest.raises(KeyError):
+        reprocess_song(job.id, store, blobs, run=fake_run)   # the job never produced a song

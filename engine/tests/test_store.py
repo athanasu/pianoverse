@@ -87,11 +87,21 @@ def test_dismiss_deletes_only_failed_jobs(store):
 def test_songs_round_trip_newest_first(store):
     now = datetime.now(UTC).replace(microsecond=0)
     old, new = _song("old", now - timedelta(days=1)), _song("new", now)
-    store.create_song(old)
-    store.create_song(new)
+    store.save_song(old)
+    store.save_song(new)
     assert store.get_song("old") == old
     assert store.get_song("missing") is None
     assert [s.id for s in store.list_songs()] == ["new", "old"]
+
+
+def test_saving_a_song_again_replaces_it(store):
+    now = datetime.now(UTC).replace(microsecond=0)
+    store.save_song(_song("s", now))
+    changed = _song("s", now)
+    changed.bpm = 77.0
+    store.save_song(changed)
+    assert store.get_song("s") == changed
+    assert len(store.list_songs()) == 1
 
 
 def test_tables_survive_a_second_store_on_the_same_database(tmp_path):
