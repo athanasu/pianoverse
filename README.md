@@ -66,7 +66,7 @@ Requirements: macOS or Linux, Node ≥ 22.22, [pnpm](https://pnpm.io), [uv](http
 ./dev.sh
 ```
 
-It checks the tools, installs what's missing, creates an API key in `app/.env.local` the first time, starts the engine's server and the web app on a free port, and opens the browser. Ctrl+C stops both. Then tap **+ New** to record or upload a song.
+It checks the tools, installs what's missing, creates an API key in `app/.env.local` the first time, starts the engine's server and the web app on a free port, and opens the browser. Ctrl+C stops both. Then record a song, choose an audio file, or drag one anywhere onto the page.
 
 **Only the player with the demo song (no server):**
 

@@ -11,3 +11,5 @@ export const Close = () => <svg {...base}><path d="M6 6l12 12M18 6L6 18" /></svg
 export const AudioFile = () => <svg {...base} width={26} height={26} strokeWidth={1.8}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /><circle cx="10" cy="16" r="2" /><path d="M12 16v-5l3 1" /></svg>
 export const MicOff = () => <svg {...base} width={26} height={26} strokeWidth={1.8}><path d="M9 9v2a3 3 0 0 0 5.1 2.1M15 9.3V5a3 3 0 0 0-5.9-.8" /><path d="M19 11a7 7 0 0 1-1.2 3.9M5 11a7 7 0 0 0 11.3 5.5M12 18v3" /><path d="M3 3l18 18" /></svg>
 export const Check = () => <svg {...base} width={16} height={16} strokeWidth={3}><path d="M5 12l5 5 9-10" /></svg>
+export const Upload = () => <svg {...base} strokeWidth={1.8}><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5" /><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" /></svg>
+export const Mic = () => <svg {...base} strokeWidth={1.8}><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>

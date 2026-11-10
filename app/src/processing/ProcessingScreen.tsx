@@ -77,11 +77,13 @@ export function Processing({ api, jobId }: { api: Api; jobId: string }) {
         </>
       )}
       {poll.error !== undefined && <p className="proc-note" role="status">{m.processing.reconnecting}</p>}
-      {failed ? (
-        <Link to="/new" className="cta">{m.common.retry}</Link>
-      ) : (
-        <Link to="/" className="ghost-cta">{m.processing.background}</Link>
-      )}
+      <div className="cta-bar">
+        {failed ? (
+          <Link to="/new" className="cta">{m.common.retry}</Link>
+        ) : (
+          <Link to="/" className="ghost-cta">{m.processing.background}</Link>
+        )}
+      </div>
     </div>
   )
 }

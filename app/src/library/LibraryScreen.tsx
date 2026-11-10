@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router'
+import { useEffect, useId, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router'
 import { ApiError, getApi } from '../api/client'
 import type { Job } from '../api/types'
 import { usePoll } from '../api/usePoll'
@@ -8,7 +8,10 @@ import { keyName } from '../i18n/music'
 import { SongLoadError, loadIndex, type SongLoadErrorCode } from '../song/loader'
 import type { SongSummary } from '../song/types'
 import { formatTime } from '../player/timeline'
-import { Alert, Plus } from '../ui/icons'
+import { handOff } from '../newsong/handoff'
+import { DropOverlay } from '../ui/DropOverlay'
+import { Alert, Mic, Upload } from '../ui/icons'
+import { useFileDrop } from '../ui/useFileDrop'
 import { FailedJobCard, JobCard } from './JobCards'
 
 export const JOBS_POLL_MS = 2000
@@ -45,8 +48,37 @@ function SongCard({ song }: { song: SongSummary }) {
   )
 }
 
+/** The way in: record, browse for a file, or drop one anywhere on the page. */
+function AddSong({ onFile }: { onFile: (file: File) => void }) {
+  const m = useMessages()
+  const inputId = useId()
+  return (
+    <section className="add-card">
+      <h2 className="add-title">{m.library.addTitle}</h2>
+      <p className="add-text">{m.library.addText}</p>
+      <div className="add-actions">
+        <Link to="/new" className="add-btn primary"><Mic />{m.newSong.record}</Link>
+        <input
+          id={inputId}
+          className="sr-only"
+          type="file"
+          accept="audio/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) onFile(file)
+            e.target.value = ''
+          }}
+        />
+        <label htmlFor={inputId} className="add-btn"><Upload />{m.newSong.file}</label>
+      </div>
+      <p className="add-drop">{m.library.addDrop}</p>
+    </section>
+  )
+}
+
 export function LibraryScreen() {
   const m = useMessages()
+  const navigate = useNavigate()
   const lang = useLang((s) => s.lang)
   const setLang = useLang((s) => s.setLang)
   const api = useMemo(() => getApi(), [])
@@ -81,6 +113,11 @@ export function LibraryScreen() {
     // Hidden at once; if the DELETE fails the card simply comes back on the next visit.
     void api?.dismissJob(id).catch(() => undefined)
   }
+  const addFile = (file: File) => {
+    handOff(file)
+    navigate('/new')
+  }
+  const dragging = useFileDrop(addFile, api !== null)
   const unauthorized = state.error === 'unauthorized' || (jobs.error instanceof ApiError && jobs.error.code === 'unauthorized')
   const serverDown = api !== null && state.error === 'network' && !unauthorized
 
@@ -94,6 +131,7 @@ export function LibraryScreen() {
           <button type="button" aria-pressed={lang === 'en'} onClick={() => setLang('en')}>{m.common.langLabels.en}</button>
         </div>
       </header>
+      {api ? <AddSong onFile={addFile} /> : <p className="demo-note"><Alert /><span>{m.library.demo}</span></p>}
       <h2 className="section-label">{m.library.yourSongs}</h2>
       {serverDown && (
         <div className="server-down" role="alert">
@@ -116,11 +154,7 @@ export function LibraryScreen() {
         {failed.map((job) => <li key={job.id}><FailedJobCard job={job} onDismiss={() => dismiss(job.id)} /></li>)}
         {state.songs?.map((song) => <li key={song.id}><SongCard song={song} /></li>)}
       </ul>
-      {api ? (
-        <Link to="/new" className="new-song-btn"><Plus />{m.library.newSong}</Link>
-      ) : (
-        <div className="new-song-soon"><Plus />{m.library.newSongSoon}</div>
-      )}
+      {dragging && <DropOverlay />}
     </div>
   )
 }
