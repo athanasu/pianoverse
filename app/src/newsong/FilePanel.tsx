@@ -1,13 +1,14 @@
 import { useId } from 'react'
 import { useMessages } from '../i18n/lang'
 import { formatTime } from '../player/timeline'
-import { AudioFile } from '../ui/icons'
+import { AudioFile, Upload } from '../ui/icons'
 
 export interface PickedFile {
   file: File
   durationSec: number | null
 }
 
+/** The file area: click it to browse; dropping a file anywhere on the screen lands here too. */
 export function FilePanel({ picked, onPick, disabled = false }: { picked: PickedFile | null; onPick: (file: File) => void; disabled?: boolean }) {
   const m = useMessages()
   const inputId = useId()
@@ -26,20 +27,22 @@ export function FilePanel({ picked, onPick, disabled = false }: { picked: Picked
           e.target.value = ''
         }}
       />
-      <label htmlFor={inputId} className="file-pick">
-        <span className="file-icon"><AudioFile /></span>
-        {picked ? (
+      {picked ? (
+        <label htmlFor={inputId} className="file-pick picked">
+          <span className="file-icon"><AudioFile /></span>
           <span className="file-body">
             <span className="file-name">{picked.file.name}</span>
             <span className="file-meta">{picked.durationSec !== null && `${formatTime(picked.durationSec)} · `}{m.newSong.changeFile}</span>
           </span>
-        ) : (
-          <span className="file-body">
-            <span className="file-name">{m.newSong.pickFile}</span>
-            <span className="file-meta">{m.newSong.pickHint}</span>
-          </span>
-        )}
-      </label>
+        </label>
+      ) : (
+        <label htmlFor={inputId} className="file-pick">
+          <span className="file-icon"><Upload /></span>
+          <span className="file-name">{m.newSong.pickFile}</span>
+          <span className="file-or">{m.newSong.orDrop}</span>
+          <span className="file-meta">{m.newSong.pickHint}</span>
+        </label>
+      )}
     </div>
   )
 }

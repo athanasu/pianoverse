@@ -1,23 +1,27 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent, { type UserEvent } from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { ApiError, type Api } from '../api/client'
 import { useLang } from '../i18n/lang'
 import { fakeApi } from '../test/fakeApi'
+import { handOff, takeHandOff } from './handoff'
 import { NewSong } from './NewSongScreen'
 import { RecorderError, type Recorder, type Recording } from './recorder'
 import type { MakeRecorder } from './useRecorder'
 
 const SUBMIT = 'Τέλος — βγάλε μου πιάνο'
 
-beforeEach(() => useLang.setState({ lang: 'el' }))
+beforeEach(() => {
+  useLang.setState({ lang: 'el' })
+  takeHandOff()
+})
 
-const renderNew = (api: Api, makeRecorder?: MakeRecorder) =>
+const renderNew = (api: Api, makeRecorder?: MakeRecorder, durationSec: number | null = 192) =>
   render(
     <MemoryRouter initialEntries={['/new']}>
       <Routes>
-        <Route path="/new" element={<NewSong api={api} probe={async () => 192} makeRecorder={makeRecorder} />} />
+        <Route path="/new" element={<NewSong api={api} probe={async () => durationSec} makeRecorder={makeRecorder} />} />
         <Route path="/processing/:jobId" element={<p>processing page</p>} />
       </Routes>
     </MemoryRouter>,
@@ -63,6 +67,79 @@ it('uploads a picked file with the chosen mode and opens processing', async () =
   await user.click(screen.getByRole('button', { name: SUBMIT }))
   expect(await screen.findByText('processing page')).toBeInTheDocument()
   expect(api.createJob).toHaveBeenCalledWith({ audio: file, filename: 'Take Five.mp3', title: 'Take Five', mode: 'instrumental', source: 'file' })
+})
+
+it('takes a file dropped anywhere on the screen, even from the record tab', async () => {
+  const api = fakeApi()
+  renderNew(api)
+  const file = take()
+  const dataTransfer = { types: ['Files'], files: [file] }
+  fireEvent.dragEnter(window, { dataTransfer })
+  expect(screen.getByTestId('drop-overlay')).toHaveTextContent('Άφησε το αρχείο εδώ')
+  fireEvent.drop(window, { dataTransfer })
+  expect(screen.queryByTestId('drop-overlay')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Από αρχείο' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByText('Take Five.mp3')).toBeInTheDocument()
+  expect(await screen.findByText('3:12 · Άλλαξε αρχείο')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: SUBMIT })).toBeEnabled()
+})
+
+it('ignores drags that carry no file', () => {
+  renderNew(fakeApi())
+  fireEvent.dragEnter(window, { dataTransfer: { types: ['text/plain'], files: [] } })
+  expect(screen.queryByTestId('drop-overlay')).not.toBeInTheDocument()
+})
+
+it('opens on the file handed over by the library', async () => {
+  handOff(take())
+  renderNew(fakeApi())
+  expect(screen.getByRole('button', { name: 'Από αρχείο' })).toHaveAttribute('aria-pressed', 'true')
+  expect(await screen.findByText('3:12 · Άλλαξε αρχείο')).toBeInTheDocument()
+  expect(takeHandOff()).toBeNull()
+})
+
+it('sends the title the user typed instead of the file name', async () => {
+  const user = userEvent.setup()
+  const api = fakeApi({ createJob: vi.fn(async () => 'j1') })
+  renderNew(api)
+  expect(screen.queryByLabelText('Τίτλος')).not.toBeInTheDocument()
+  const file = take()
+  await pickFile(user, file)
+  const title = screen.getByLabelText('Τίτλος')
+  expect(title).toHaveAttribute('placeholder', 'Take Five')
+  await user.type(title, '  Blue Rondo ')
+  await user.click(screen.getByRole('button', { name: SUBMIT }))
+  expect(await screen.findByText('processing page')).toBeInTheDocument()
+  expect(api.createJob).toHaveBeenCalledWith({ audio: file, filename: 'Take Five.mp3', title: 'Blue Rondo', mode: 'auto', source: 'file' })
+})
+
+it('says at once when a file cannot be used, before anything is uploaded', async () => {
+  const user = userEvent.setup({ applyAccept: false })
+  const api = fakeApi()
+  const { unmount } = renderNew(api)
+  await pickFile(user, new File(['%PDF'], 'notes.pdf', { type: 'application/pdf' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Αυτό δεν είναι αρχείο ήχου.')
+  expect(screen.getByRole('button', { name: SUBMIT })).toBeDisabled()
+  expect(screen.queryByLabelText('Τίτλος')).not.toBeInTheDocument()
+
+  const huge = take()
+  Object.defineProperty(huge, 'size', { value: 51 * 1024 * 1024 })
+  await user.upload(screen.getByLabelText(/notes\.pdf/), huge)
+  expect(await screen.findByRole('alert')).toHaveTextContent('Το αρχείο είναι πολύ μεγάλο — μέγιστο 50 MB.')
+  expect(screen.getByRole('button', { name: SUBMIT })).toBeDisabled()
+  unmount()
+
+  const long = renderNew(api, undefined, 600)
+  await pickFile(user, take())
+  expect(await screen.findByRole('alert')).toHaveTextContent('Το κομμάτι είναι πολύ μεγάλο — μέγιστο 8 λεπτά.')
+  expect(screen.getByRole('button', { name: SUBMIT })).toBeDisabled()
+  long.unmount()
+
+  renderNew(api, undefined, 4)
+  await pickFile(user, take())
+  expect(await screen.findByRole('alert')).toHaveTextContent('Ο ήχος είναι πολύ μικρός — χρειάζονται τουλάχιστον 10 δευτερόλεπτα.')
+  expect(screen.getByRole('button', { name: SUBMIT })).toBeDisabled()
+  expect(api.createJob).not.toHaveBeenCalled()
 })
 
 it('explains a rejected upload by its code', async () => {

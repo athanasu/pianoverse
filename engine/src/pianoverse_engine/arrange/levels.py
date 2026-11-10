@@ -1,4 +1,4 @@
-from ..melody import fit_octave
+from ..melody import fit_octave, plain_line
 from ..models import Arrangement, ChordSegment, Note, RawNote
 from ..theory import chord_pcs, pc_of, pitch_at_or_above
 from .quantize import beat_grid, quantize_monophonic
@@ -10,6 +10,7 @@ R_VEL, HARMONY_VEL, L_VEL = 80, 64, 60
 ON_BEAT_TOLERANCE = 0.03
 EPS = 1e-6
 MIN_ARRANGED_NOTE = 0.08   # seconds; shorter notes are unplayable slivers
+FALLBACK_BAR_BEATS = 4     # bar length assumed when the beat tracker found no downbeats
 
 
 def _sorted(notes: list[Note]) -> Arrangement:
@@ -32,6 +33,11 @@ def _bass_pc(chord: ChordSegment) -> int:
 def _split_at(start: float, end: float, points: list[float]) -> list[tuple[float, float]]:
     cuts = [start, *[p for p in points if start + EPS < p < end - EPS], end]
     return list(zip(cuts[:-1], cuts[1:]))
+
+
+def _bar_lines(beats: list[float], downbeats: list[float]) -> list[float]:
+    """Where the left hand strikes again under a long chord, so nothing is held for many bars."""
+    return downbeats if len(downbeats) >= 2 else sorted(beats)[::FALLBACK_BAR_BEATS]
 
 
 def _chord_at(chords: list[ChordSegment], t: float) -> ChordSegment | None:
@@ -57,17 +63,19 @@ def _voicings(chords: list[ChordSegment]) -> list[tuple[int, ...]]:
 
 
 def arrange_easy(melody, chords, beats, downbeats, duration) -> Arrangement:
-    right = _right(_melody(melody, beats, duration, subdivisions=2))
-    left = [Note(pitch=pitch_at_or_above(_bass_pc(c), EASY_BASS_LO),
-                 start=c.start, end=c.end, velocity=L_VEL, hand="L") for c in chords]
+    right = _right(_melody(plain_line(melody), beats, duration, subdivisions=2))
+    bars = _bar_lines(beats, downbeats)
+    left = [Note(pitch=pitch_at_or_above(_bass_pc(c), EASY_BASS_LO), start=start, end=end, velocity=L_VEL, hand="L")
+            for c in chords for start, end in _split_at(c.start, c.end, bars)]
     return _sorted(right + left)
 
 
 def arrange_medium(melody, chords, beats, downbeats, duration) -> Arrangement:
     right = _right(_melody(melody, beats, duration, subdivisions=4))
+    bars = _bar_lines(beats, downbeats)
     left: list[Note] = []
     for chord, voicing in zip(chords, _voicings(chords)):
-        for start, end in _split_at(chord.start, chord.end, downbeats):
+        for start, end in _split_at(chord.start, chord.end, bars):
             left += [Note(pitch=p, start=start, end=end, velocity=L_VEL, hand="L") for p in voicing]
     return _sorted(right + left)
 

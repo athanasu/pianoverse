@@ -66,10 +66,10 @@ test('upload a file → processing → player → library', async ({ page }) => 
   await page.goto('/')
   await expect(page.getByText('Δεν υπάρχουν ακόμα κομμάτια.')).toBeVisible()
 
-  await page.getByRole('link', { name: 'Νέο' }).click()
+  // Choosing a file on the library opens the new-song screen with it already in place.
+  await page.getByLabel('Από αρχείο').setInputFiles({ name: 'Take Five.wav', mimeType: 'audio/wav', buffer: wav(12) })
   await expect(page.getByRole('heading', { name: 'Νέο τραγούδι' })).toBeVisible()
-  await page.getByRole('button', { name: 'Από αρχείο' }).click()
-  await page.getByLabel(/Διάλεξε αρχείο ήχου/).setInputFiles({ name: 'Take Five.wav', mimeType: 'audio/wav', buffer: wav(12) })
+  await expect(page.getByRole('button', { name: 'Από αρχείο' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText('Take Five.wav')).toBeVisible()
   await expect(page.getByText('0:12 · Άλλαξε αρχείο')).toBeVisible()
   await page.getByRole('button', { name: 'Instrumental' }).click()
@@ -88,6 +88,29 @@ test('upload a file → processing → player → library', async ({ page }) => 
 
   await page.goto('/')
   await expect(page.getByRole('link', { name: /Demo · Am F C G/ })).toBeVisible()
+})
+
+test('a file dropped on the new-song screen is picked up', async ({ page }) => {
+  await fakeServer(page)
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Ηχογράφηση' }).click()
+  await expect(page.getByRole('heading', { name: 'Νέο τραγούδι' })).toBeVisible()
+
+  const bytes = [...wav(12)]
+  const drag = (type: string) =>
+    page.evaluate(({ type, bytes }) => {
+      const dataTransfer = new DataTransfer()
+      dataTransfer.items.add(new File([new Uint8Array(bytes)], 'Take Five.wav', { type: 'audio/wav' }))
+      document.body.dispatchEvent(new DragEvent(type, { dataTransfer, bubbles: true, cancelable: true }))
+    }, { type, bytes })
+  await drag('dragenter')
+  await expect(page.getByText('Άφησε το αρχείο εδώ')).toBeVisible()
+  await drag('drop')
+  await expect(page.getByText('Άφησε το αρχείο εδώ')).toBeHidden()
+  await expect(page.getByText('Take Five.wav')).toBeVisible()
+  await expect(page.getByText('0:12 · Άλλαξε αρχείο')).toBeVisible()
+  await expect(page.getByLabel('Τίτλος')).toHaveAttribute('placeholder', 'Take Five')
+  await expect(page.getByRole('button', { name: 'Τέλος — βγάλε μου πιάνο' })).toBeEnabled()
 })
 
 test('the library says when the server is down and recovers on retry', async ({ page }) => {

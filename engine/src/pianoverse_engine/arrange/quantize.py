@@ -33,16 +33,21 @@ def quantize_monophonic(notes: list[RawNote], grid: np.ndarray) -> list[RawNote]
         return int(np.abs(g - t).argmin())
 
     snapped: list[RawNote] = []
+    lengths: list[float] = []   # original durations, to settle two notes landing on one grid point
     for n in sorted(notes, key=lambda n: (n.start, -n.pitch)):
         i, j = nearest(n.start), nearest(n.end)
         if j <= i:
             j = min(i + 1, len(g) - 1)
         if j <= i:
             continue
-        start = round(float(g[i]), 6)
-        if snapped and snapped[-1].start == start:
+        note = replace(n, start=round(float(g[i]), 6), end=round(float(g[j]), 6))
+        length = n.end - n.start
+        if snapped and snapped[-1].start == note.start:
+            if length > lengths[-1]:
+                snapped[-1], lengths[-1] = note, length
             continue
-        snapped.append(replace(n, start=start, end=round(float(g[j]), 6)))
+        snapped.append(note)
+        lengths.append(length)
     for k in range(len(snapped) - 1):
         if snapped[k].end > snapped[k + 1].start:
             snapped[k] = replace(snapped[k], end=snapped[k + 1].start)
