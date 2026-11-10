@@ -2,9 +2,10 @@ from ..melody import fit_octave, plain_line
 from ..models import Arrangement, ChordSegment, Note, RawNote
 from ..theory import chord_pcs, pc_of, pitch_at_or_above
 from .quantize import beat_grid, quantize_monophonic
-from .voicing import bass_below, voice_lead
+from .voicing import chord_tones, voice_lead
 
 EASY_BASS_LO = 43          # easy left hand stays in G2–F#3
+HARD_BASS_LO = 41          # hard left hand holds its bass in F2–E3 when enough of the chord fits above it
 SPLIT = 60                 # middle C: right hand at/above, left hand below
 R_VEL, HARMONY_VEL, L_VEL = 80, 64, 60
 ON_BEAT_TOLERANCE = 0.03
@@ -62,6 +63,21 @@ def _voicings(chords: list[ChordSegment]) -> list[tuple[int, ...]]:
     return voice_lead([(pc_of(c.root), c.quality) for c in chords])
 
 
+def _reach_above(bass: int, chord: ChordSegment) -> list[int]:
+    """Chord tones the left hand can play while holding the bass: within an octave above it, below middle C."""
+    tones = {bass + ((pc - bass) % 12 or 12) for pc in chord_tones(pc_of(chord.root), chord.quality)}
+    return sorted(t for t in tones if t < SPLIT)
+
+
+def _held_bass_figure(chord: ChordSegment) -> tuple[int, list[int]]:
+    """The bass to hold under a chord and the figure that rolls up and back down above it."""
+    bass = pitch_at_or_above(_bass_pc(chord), HARD_BASS_LO)
+    if len(_reach_above(bass, chord)) < 2:
+        bass -= 12  # too close to middle C for a figure; an octave lower the whole chord fits
+    tones = _reach_above(bass, chord)
+    return bass, tones + tones[-2:0:-1]
+
+
 def arrange_easy(melody, chords, beats, downbeats, duration) -> Arrangement:
     right = _right(_melody(plain_line(melody), beats, duration, subdivisions=2))
     bars = _bar_lines(beats, downbeats)
@@ -92,14 +108,17 @@ def arrange_hard(melody, chords, beats, downbeats, duration) -> Arrangement:
         if harmony is not None:
             right.append(Note(pitch=harmony, start=n.start, end=n.end, velocity=HARMONY_VEL, hand="R"))
 
-    eighths = beat_grid(beats, duration, subdivisions=2)
+    # The bass is held through each bar of the chord while the chord tones run in eighths above it.
+    eighths = [float(t) for t in beat_grid(beats, duration, subdivisions=2)]
+    bars = _bar_lines(beats, downbeats)
     left: list[Note] = []
-    for chord, voicing in zip(chords, _voicings(chords)):
-        pattern = [bass_below(_bass_pc(chord), voicing[0]), *voicing]
-        ticks = sorted({chord.start, *[float(t) for t in eighths if chord.start + EPS < t < chord.end - EPS]})
-        ends = ticks[1:] + [chord.end]
-        for i, (start, end) in enumerate(zip(ticks, ends)):
-            left.append(Note(pitch=pattern[i % len(pattern)], start=start, end=end, velocity=L_VEL, hand="L"))
+    for chord in chords:
+        bass, figure = _held_bass_figure(chord)
+        for start, end in _split_at(chord.start, chord.end, bars):
+            left.append(Note(pitch=bass, start=start, end=end, velocity=L_VEL, hand="L"))
+            ticks = [t for t in eighths if start + EPS < t < end - EPS]
+            for i, (on, off) in enumerate(zip(ticks, ticks[1:] + [end])):
+                left.append(Note(pitch=figure[i % len(figure)], start=on, end=off, velocity=L_VEL, hand="L"))
     return _sorted(right + left)
 
 

@@ -98,6 +98,34 @@ def test_hard_adds_harmony_to_the_right_hand():
     assert len(r_hard) > len(r_medium)
 
 
+def test_hard_holds_the_bass_under_a_running_arpeggio():
+    arr = arrange_hard(MELODY, CHORDS, BEATS, DOWNBEATS, DURATION)
+    left = [n for n in arr.notes if n.hand == "L"]
+    for chord, bass_pc in zip(CHORDS, [0, 9, 5, 7]):
+        held = [n for n in left if (n.start, n.end) == (chord.start, chord.end)]
+        assert [n.pitch % 12 for n in held] == [bass_pc]
+        above = [n for n in left if chord.start < n.start < chord.end]
+        assert len(above) == 7
+        assert all(n.pitch > held[0].pitch and n.end - n.start <= 0.25 + 1e-6 for n in above)
+
+
+def test_hard_restrikes_the_held_bass_on_downbeats():
+    chords = [ChordSegment(start=0, end=6, symbol="C", root="C", quality="maj")]
+    arr = arrange_hard(MELODY[:8], chords, BEATS, DOWNBEATS, DURATION)
+    lowest = min(n.pitch for n in arr.notes if n.hand == "L")
+    bass = [n for n in arr.notes if n.hand == "L" and n.pitch == lowest]
+    assert [(n.start, n.end) for n in bass] == [(0, 2.0), (2.0, 4.0), (4.0, 6)]
+
+
+def test_hard_uses_slash_bass_and_keeps_a_figure_above_it():
+    chords = [ChordSegment(start=0, end=2, symbol="C/E", root="C", quality="maj", bass="E")]
+    arr = arrange_hard(MELODY[:4], chords, BEATS, DOWNBEATS, DURATION)
+    left = [n for n in arr.notes if n.hand == "L"]
+    # E3 leaves only one chord tone below middle C, so the bass sits an octave lower.
+    assert min(n.pitch for n in left) == 40
+    assert {n.pitch for n in left} == {40, 43, 48, 52}
+
+
 def test_original_splits_hands_at_middle_c():
     arr = arrange_original([RawNote(48, 0, 1, 70), RawNote(64, 0, 1, 70)])
     assert [(n.pitch, n.hand) for n in arr.notes] == [(48, "L"), (64, "R")]

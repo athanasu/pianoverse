@@ -50,10 +50,3 @@ def voice_lead(
         prev = best
     return out
 
-
-def bass_below(pc: int, ceiling: int) -> int:
-    """Highest pitch with pitch class pc strictly below ceiling."""
-    p = ceiling - 1
-    while p % 12 != pc:
-        p -= 1
-    return p
