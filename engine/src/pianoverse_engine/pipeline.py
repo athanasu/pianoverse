@@ -9,7 +9,7 @@ from .audio import normalize
 from .classify import classify, lead_stem
 from .errors import PipelineError
 from .key import chroma_profile, estimate_key
-from .melody import clean_notes, drop_ghost_notes, skyline
+from .melody import clean_notes, drop_ghost_notes, settle_register, skyline
 from .models import Arrangement, ChordSegment, Preview, RawNote, Song, SongWarning
 from .rhythm import tempo_from_beats, time_signature
 from .separate import HARMONIC_STEMS, Stems
@@ -113,7 +113,7 @@ def run_pipeline(
         raw = drop_ghost_notes(clean_notes(engines.transcribe_polyphonic(stem_paths["vocals"])))
     else:
         raw = drop_ghost_notes(clean_notes(engines.transcribe_polyphonic(stem_paths[lead_stem(energies)])))
-    melody = skyline(raw)
+    melody = settle_register(skyline(raw), polyphonic=source_type != "vocal")
     if not melody:
         raise PipelineError("no_melody", "Could not find a melody in the song.")
 

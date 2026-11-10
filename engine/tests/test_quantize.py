@@ -35,6 +35,12 @@ def test_quantize_keeps_one_note_per_onset():
     assert out[0].start == pytest.approx(0.0)
 
 
+def test_quantize_keeps_the_longer_of_two_notes_on_one_grid_point():
+    grid = np.arange(0.0, 2.01, 0.25)
+    out = quantize_monophonic([RawNote(71, 0.45, 0.52), RawNote(72, 0.55, 1.0)], grid)
+    assert out == [RawNote(72, 0.5, 1.0)]
+
+
 def test_beat_grid_covers_lead_in_before_first_beat():
     grid = beat_grid([0.3, 0.8, 1.3], duration=1.5, subdivisions=2)
     assert grid[0] == 0.0

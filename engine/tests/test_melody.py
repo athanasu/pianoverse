@@ -1,4 +1,4 @@
-from pianoverse_engine.melody import clean_notes, drop_ghost_notes, fit_octave, skyline
+from pianoverse_engine.melody import clean_notes, drop_ghost_notes, fit_octave, plain_line, settle_register, skyline
 from pianoverse_engine.models import RawNote
 
 
@@ -52,3 +52,59 @@ def test_skyline_after_ghost_removal_returns_the_melody():
     melody = [RawNote(72 + i, i * 0.5, i * 0.5 + 0.4, 100) for i in range(6)]
     ghosts = [RawNote(n.pitch + 24, n.start, n.end, 40) for n in melody]
     assert skyline(drop_ghost_notes(melody + ghosts)) == melody
+
+
+def _line(pitches: list[int], step: float = 0.5) -> list[RawNote]:
+    return [RawNote(p, i * step, (i + 1) * step) for i, p in enumerate(pitches)]
+
+
+def test_settle_register_keeps_an_ordinary_tune():
+    tune = _line([60, 62, 64, 65, 67, 72, 67, 64, 60])
+    assert settle_register(tune, polyphonic=False) == tune
+    assert settle_register(tune, polyphonic=True) == tune
+
+
+def test_settle_register_moves_an_octave_error_back():
+    tune = _line([60, 62, 76, 62, 60, 62, 48, 60])
+    assert [n.pitch for n in settle_register(tune, polyphonic=False)] == [60, 62, 64, 62, 60, 62, 60, 60]
+
+
+def test_settle_register_drops_accompaniment_below_a_polyphonic_tune():
+    tune = _line([70, 72, 46, 72, 70, 68, 70])
+    assert [n.pitch for n in settle_register(tune, polyphonic=True)] == [70, 72, 72, 70, 68, 70]
+
+
+def test_settle_register_drops_notes_too_far_to_be_an_octave_error():
+    tune = _line([60, 62, 96, 62, 60])
+    assert [n.pitch for n in settle_register(tune, polyphonic=False)] == [60, 62, 62, 60]
+
+
+def test_settle_register_drops_an_inner_voice_between_two_tune_notes():
+    tune = _line([70, 63, 70, 72, 65, 73])
+    assert [n.pitch for n in settle_register(tune, polyphonic=True)] == [70, 70, 72, 73]
+    assert settle_register(tune, polyphonic=False) == tune
+
+
+def test_settle_register_follows_a_tune_that_changes_register():
+    tune = _line([60, 62, 64] * 8 + [76, 77, 79] * 8)
+    settled = settle_register(tune, polyphonic=False)
+    assert [n.pitch % 12 for n in settled] == [n.pitch % 12 for n in tune]
+    # only a note right at the seam may be read as belonging to the register it leaves
+    assert sum(a != b for a, b in zip(settled, tune)) <= 1
+
+
+def test_settle_register_of_nothing_is_nothing():
+    assert settle_register([], polyphonic=True) == []
+
+
+def test_plain_line_holds_through_a_semitone_flick():
+    notes = [RawNote(60, 0.0, 0.4), RawNote(59, 0.4, 0.55), RawNote(60, 0.55, 1.0), RawNote(64, 1.0, 1.5)]
+    assert plain_line(notes) == [RawNote(60, 0.0, 1.0), RawNote(64, 1.0, 1.5)]
+
+
+def test_plain_line_keeps_a_real_neighbour_note():
+    slow = [RawNote(60, 0.0, 0.4), RawNote(59, 0.4, 0.9), RawNote(60, 0.9, 1.4)]
+    step = [RawNote(60, 0.0, 0.4), RawNote(58, 0.4, 0.55), RawNote(60, 0.55, 1.0)]
+    apart = [RawNote(60, 0.0, 0.4), RawNote(59, 0.6, 0.75), RawNote(60, 0.75, 1.0)]
+    for notes in (slow, step, apart):
+        assert plain_line(notes) == notes

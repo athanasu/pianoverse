@@ -55,6 +55,29 @@ def test_easy_left_hand_is_one_bass_note_per_chord():
     assert [n.pitch % 12 for n in left] == [0, 9, 5, 7]
 
 
+def test_easy_restrikes_a_long_chord_on_downbeats():
+    chords = [ChordSegment(start=0, end=6, symbol="C", root="C", quality="maj")]
+    arr = arrange_easy(MELODY[:8], chords, BEATS, DOWNBEATS, DURATION)
+    left = [n for n in arr.notes if n.hand == "L"]
+    assert [(n.start, n.end) for n in left] == [(0, 2.0), (2.0, 4.0), (4.0, 6)]
+    assert len({n.pitch for n in left}) == 1
+
+
+@pytest.mark.parametrize("arrange", [arrange_easy, arrange_medium])
+def test_long_chords_are_restruck_every_four_beats_without_downbeats(arrange):
+    chords = [ChordSegment(start=0, end=8, symbol="C", root="C", quality="maj")]
+    arr = arrange(MELODY, chords, BEATS, [], DURATION)
+    assert sorted({n.start for n in arr.notes if n.hand == "L"}) == [0, 2.0, 4.0, 6.0]
+
+
+def test_easy_plays_an_ornament_as_one_held_note():
+    melody = [RawNote(72, 0.0, 0.5, 90), RawNote(71, 0.5, 0.7, 90), RawNote(72, 0.7, 1.5, 90)]
+    easy = arrange_easy(melody, CHORDS, BEATS, DOWNBEATS, DURATION)
+    medium = arrange_medium(melody, CHORDS, BEATS, DOWNBEATS, DURATION)
+    assert [(n.pitch, n.start, n.end) for n in easy.notes if n.hand == "R"] == [(72, 0.0, 1.5)]
+    assert len([n for n in medium.notes if n.hand == "R"]) == 3
+
+
 def test_easy_uses_slash_bass():
     chords = [ChordSegment(start=0, end=2, symbol="C/E", root="C", quality="maj", bass="E")]
     arr = arrange_easy(MELODY[:4], chords, BEATS, DOWNBEATS, DURATION)
