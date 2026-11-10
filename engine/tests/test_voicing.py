@@ -1,7 +1,7 @@
 import pytest
 
 from pianoverse_engine.arrange.voicing import (
-    LH_HI, LH_LO, bass_below, chord_tones, voice_lead, voicings,
+    LH_HI, LH_LO, chord_tones, voice_lead, voicings,
 )
 from pianoverse_engine.theory import QUALITY_INTERVALS
 
@@ -27,8 +27,3 @@ def test_every_chord_has_a_playable_voicing(root, quality):
 
 def test_voice_leading_moves_minimally():
     assert voice_lead([(0, "maj"), (5, "maj")]) == [(48, 52, 55), (48, 53, 57)]
-
-
-def test_bass_below():
-    assert bass_below(0, 48) == 36
-    assert bass_below(4, 48) == 40

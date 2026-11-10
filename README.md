@@ -13,9 +13,9 @@ Pianoverse listens to any song (vocals, a band, or solo piano), writes a playabl
 - **Song → piano.** Separates the instruments, finds the beat, the chords and the melody, and arranges them for two hands:
   - **Easy:** melody + one bass note per chord
   - **Medium:** melody + chords in the left hand
-  - **Hard:** melody with harmony + arpeggios
+  - **Hard:** melody with harmony + arpeggios over a held bass
   - **Original:** the faithful transcription, for solo-piano recordings
-- **Learn it.** Falling notes and a keyboard that lights up, chord names as they come, a chord card with the keys and fingering, A–B loop, 25–100% speed, hands on/off (switch one hand off and the app plays it while you play the other), note names in your language (Ντο Ρε Μι / C D E).
+- **Learn it.** Falling notes and a keyboard that lights up, chord names as they come, a chord card with the keys and fingering, A–B loop, 25–200% speed, hands on/off (switch one hand off and the app plays it while you play the other), note names in your language (Ντο Ρε Μι / C D E).
 - **Greek and English** throughout.
 
 <p align="center">
