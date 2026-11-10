@@ -69,6 +69,32 @@ a, button, label, .text-input { transition: background-color 0.15s ease, border-
 .ctl { height: 44px; min-width: 44px; justify-content: center; padding: 0 12px; flex-shrink: 0; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
 .ctl[aria-pressed='true'] { color: var(--text); background: var(--control-on); }
 .ctl.mono { font-family: var(--font-mono); color: var(--text); }
+.ctl[aria-expanded='true'] { background: var(--control-on); border-color: var(--line-strong); }
+.speed { position: relative; flex-shrink: 0; display: flex; }
+.speed-panel { position: absolute; z-index: 3; left: 50%; bottom: calc(100% + 12px); width: 340px; margin-left: -170px; padding: 14px 14px 12px; border-radius: 18px; background: rgba(20, 25, 39, 0.97); border: 1px solid var(--line-strong); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 6px; transform-origin: 50% 100%; animation: speed-in 0.14s ease-out; }
+@keyframes speed-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } }
+.speed-head { display: flex; align-items: baseline; justify-content: space-between; }
+.speed-value { font-family: var(--font-display); font-size: 22px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.speed-row { display: flex; align-items: center; gap: 8px; }
+.speed-step { width: 44px; height: 44px; flex-shrink: 0; padding: 0; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); display: inline-flex; align-items: center; justify-content: center; }
+.speed-step:disabled { color: var(--idle); cursor: default; }
+/* --f is how far along the slider a value sits (0 to 1); the thumb is 22px wide and stops 11px short of each end. */
+.speed-track { position: relative; flex: 1; min-width: 0; display: flex; }
+.speed-mark { position: absolute; top: 50%; left: calc(11px + (100% - 22px) * var(--f)); width: 2px; height: 16px; margin: -8px 0 0 -1px; border-radius: 1px; background: var(--idle); pointer-events: none; }
+.speed-slider { position: relative; -webkit-appearance: none; appearance: none; width: 100%; height: 44px; margin: 0; background: transparent; cursor: pointer; --at: calc(11px + (100% - 22px) * var(--f)); }
+.speed-slider::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: linear-gradient(to right, var(--right) var(--at), var(--line) var(--at)); }
+.speed-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border: none; border-radius: 999px; background: var(--hit); box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45); }
+.speed-slider::-moz-range-track { height: 6px; border-radius: 999px; background: var(--line); }
+.speed-slider::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--right); }
+.speed-slider::-moz-range-thumb { width: 22px; height: 22px; border: none; border-radius: 999px; background: var(--hit); box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45); }
+.speed-slider:focus-visible { outline: 2px solid var(--left-hi); outline-offset: -6px; border-radius: 12px; }
+.speed-presets { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.speed-preset { height: 44px; padding: 0; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+.speed-preset:hover { border-color: var(--line-strong); color: var(--text); }
+.speed-preset[aria-pressed='true'] { border-color: transparent; background: var(--right); color: var(--on-accent); }
+@media (prefers-reduced-motion: reduce) {
+  .speed-panel { animation: none; }
+}
 .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--line); }
 .ctl[aria-pressed='true'] .dot.left { background: var(--left); }
 .ctl[aria-pressed='true'] .dot.right { background: var(--right); }
